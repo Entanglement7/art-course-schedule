@@ -1,40 +1,3 @@
--- ============================================
--- 艺术排课系统 - 完整数据库备份
--- 创建时间: 2026-05-07
--- 数据库: art_schedule
--- 字符集: utf8mb4
--- 密码: 所有账号密码均为 123456（明文存储）
--- ============================================
-
--- 使用说明:
--- 1. 确保MySQL版本 >= 5.7
--- 2. 在MySQL命令行或工具中执行以下命令:
---    mysql -u root -p --default-character-set=utf8mb4 < art_schedule_complete.sql
--- 3. 或者在MySQL客户端中:
---    SOURCE /path/to/art_schedule_complete.sql;
-
--- ============================================
--- 创建数据库
--- ============================================
-
-DROP DATABASE IF EXISTS art_schedule;
-CREATE DATABASE art_schedule
-  DEFAULT CHARACTER SET utf8mb4
-  DEFAULT COLLATE utf8mb4_unicode_ci;
-
-USE art_schedule;
-
--- 设置字符集
-SET NAMES utf8mb4;
-SET CHARACTER_SET_CLIENT = utf8mb4;
-SET CHARACTER_SET_CONNECTION = utf8mb4;
-SET CHARACTER_SET_RESULTS = utf8mb4;
-SET COLLATION_CONNECTION = utf8mb4_unicode_ci;
-
--- ============================================
--- 导入完整数据
--- ============================================
-
 -- MySQL dump 10.13  Distrib 8.4.8, for Win64 (x86_64)
 --
 -- Host: localhost    Database: art_schedule
@@ -436,7 +399,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin','123456','管理员','admin',NULL,NULL,'2026-05-07 17:18:02'),(2,'teacher1','123456','张老师','teacher',1,NULL,'2026-05-07 17:18:02'),(3,'teacher2','123456','李老师','teacher',2,NULL,'2026-05-07 17:18:02'),(4,'teacher3','123456','王老师','teacher',3,NULL,'2026-05-07 17:18:02'),(5,'student1','123456','小明','student',NULL,1,'2026-05-07 17:18:02'),(6,'student2','123456','小红','student',NULL,2,'2026-05-07 17:18:02'),(7,'student3','123456','小刚','student',NULL,3,'2026-05-07 17:18:02'),(8,'student4','123456','小丽','student',NULL,4,'2026-05-07 17:22:26'),(9,'student5','123456','小芳','student',NULL,5,'2026-05-07 17:22:26'),(10,'student6','123456','小华','student',NULL,6,'2026-05-07 17:22:26'),(11,'student7','123456','小美','student',NULL,7,'2026-05-07 17:22:26'),(12,'student8','123456','小强','student',NULL,8,'2026-05-07 17:22:26'),(13,'student9','123456','小军','student',NULL,9,'2026-05-07 17:22:26'),(14,'student10','123456','小兰','student',NULL,10,'2026-05-07 17:22:26');
+INSERT INTO `users` VALUES (1,'admin','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','管理员','admin',NULL,NULL,'2026-05-07 17:18:02'),(2,'teacher1','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','张老师','teacher',1,NULL,'2026-05-07 17:18:02'),(3,'teacher2','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','李老师','teacher',2,NULL,'2026-05-07 17:18:02'),(4,'teacher3','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','王老师','teacher',3,NULL,'2026-05-07 17:18:02'),(5,'student1','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小明','student',NULL,1,'2026-05-07 17:18:02'),(6,'student2','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小红','student',NULL,2,'2026-05-07 17:18:02'),(7,'student3','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小刚','student',NULL,3,'2026-05-07 17:18:02'),(8,'student4','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小丽','student',NULL,4,'2026-05-07 17:22:26'),(9,'student5','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小芳','student',NULL,5,'2026-05-07 17:22:26'),(10,'student6','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小华','student',NULL,6,'2026-05-07 17:22:26'),(11,'student7','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小美','student',NULL,7,'2026-05-07 17:22:26'),(12,'student8','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小强','student',NULL,8,'2026-05-07 17:22:26'),(13,'student9','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小军','student',NULL,9,'2026-05-07 17:22:26'),(14,'student10','$2a$10$BQu61hVHGVn6A8yl93YjS..Ksm8ovz/MDhUzl3GbO5j6.3ZHZuWeq','小兰','student',NULL,10,'2026-05-07 17:22:26');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -457,4 +420,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-05-07 20:45:26
+-- Dump completed on 2026-05-07 20:38:27

@@ -7,19 +7,16 @@ import com.art.schedule.dto.RegisterRequest;
 import com.art.schedule.entity.User;
 import com.art.schedule.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
 
     private final UserMapper userMapper;
-    private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    public AuthService(UserMapper userMapper, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public AuthService(UserMapper userMapper, JwtUtil jwtUtil) {
         this.userMapper = userMapper;
-        this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
     }
 
@@ -30,7 +27,7 @@ public class AuthService {
         String role = "teacher".equals(req.getRole()) ? "teacher" : "student";
         User user = new User();
         user.setUsername(req.getUsername());
-        user.setPassword(passwordEncoder.encode(req.getPassword()));
+        user.setPassword(req.getPassword());
         user.setName(req.getName());
         user.setRole(role);
         userMapper.insert(user);
@@ -39,17 +36,7 @@ public class AuthService {
 
     public LoginResponse login(LoginRequest req) {
         User user = userMapper.selectOne(new QueryWrapper<User>().eq("username", req.getUsername()));
-        System.out.println("=== Login Debug ===");
-        System.out.println("Username: " + req.getUsername());
-        System.out.println("Input Password: " + req.getPassword());
-        System.out.println("User found: " + (user != null));
-        if (user != null) {
-            System.out.println("Stored Hash: " + user.getPassword());
-            boolean matches = passwordEncoder.matches(req.getPassword(), user.getPassword());
-            System.out.println("Password matches: " + matches);
-        }
-        System.out.println("==================");
-        if (user == null || !passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+        if (user == null || !req.getPassword().equals(user.getPassword())) {
             throw new IllegalArgumentException("用户名或密码错误");
         }
         return buildResponse(user);
