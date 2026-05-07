@@ -41,9 +41,26 @@ public class DashboardService {
         List<Schedule> todaySchedules = scheduleMapper.selectWeekSchedule(today, today);
         data.put("todayCourses", todaySchedules.size());
 
-        long music = courseMapper.selectCount(new LambdaQueryWrapper<Course>().eq(Course::getCategory, "音乐"));
-        long dance = courseMapper.selectCount(new LambdaQueryWrapper<Course>().eq(Course::getCategory, "舞蹈"));
-        long art = courseMapper.selectCount(new LambdaQueryWrapper<Course>().eq(Course::getCategory, "美术"));
+        // 统计本周实际排课的课程类型分布
+        LocalDate monday = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        LocalDate sunday = monday.plusDays(6);
+        List<Schedule> weekSchedules = scheduleMapper.selectWeekSchedule(monday, sunday);
+
+        System.out.println("=== Course Stats Debug ===");
+        System.out.println("Week range: " + monday + " to " + sunday);
+        System.out.println("Total week schedules: " + weekSchedules.size());
+
+        long music = weekSchedules.stream().filter(s -> {
+            System.out.println("Schedule ID: " + s.getId() + ", Category: " + s.getCourseCategory());
+            return "音乐".equals(s.getCourseCategory());
+        }).count();
+
+        long dance = weekSchedules.stream().filter(s -> "舞蹈".equals(s.getCourseCategory())).count();
+        long art = weekSchedules.stream().filter(s -> "美术".equals(s.getCourseCategory())).count();
+
+        System.out.println("Music: " + music + ", Dance: " + dance + ", Art: " + art);
+        System.out.println("========================");
+
         data.put("courseStats", Map.of("music", music, "dance", dance, "art", art, "total", music + dance + art));
         data.put("todayCourseList", todaySchedules);
         return data;
