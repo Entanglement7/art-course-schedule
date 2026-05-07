@@ -15,4 +15,5 @@ public class TeacherRequest {
     @NotNull(message = "入职日期不能为空")
     private String joinDate;
     private List<String> courses;
+    private Long userId;  // 关联的用户账号ID
 }

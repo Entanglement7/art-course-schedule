@@ -22,5 +22,29 @@ html, body, #app {
   width: 100%;
   height: 100%;
 }
+
+@media print {
+  * {
+    overflow: visible !important;
+  }
+
+  html, body, #app {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  @page {
+    margin: 10mm;
+    size: A4 landscape;
+  }
+}
 </style>
 

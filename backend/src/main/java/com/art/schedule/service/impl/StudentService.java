@@ -3,7 +3,9 @@ package com.art.schedule.service.impl;
 import com.art.schedule.common.PageResult;
 import com.art.schedule.dto.StudentRequest;
 import com.art.schedule.entity.Student;
+import com.art.schedule.entity.User;
 import com.art.schedule.mapper.StudentMapper;
+import com.art.schedule.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.stereotype.Service;
@@ -16,9 +18,11 @@ import java.time.LocalDate;
 public class StudentService {
 
     private final StudentMapper studentMapper;
+    private final UserMapper userMapper;
 
-    public StudentService(StudentMapper studentMapper) {
+    public StudentService(StudentMapper studentMapper, UserMapper userMapper) {
         this.studentMapper = studentMapper;
+        this.userMapper = userMapper;
     }
 
     public PageResult<Student> list(int page, int size, String search, String course) {
@@ -52,6 +56,14 @@ public class StudentService {
         if (req.getCourses() != null && !req.getCourses().isEmpty()) {
             studentMapper.insertCourses(s.getId(), req.getCourses());
         }
+        // 如果指定了用户ID，关联该用户
+        if (req.getUserId() != null) {
+            User user = userMapper.selectById(req.getUserId());
+            if (user != null && "student".equals(user.getRole())) {
+                user.setStudentId(s.getId());
+                userMapper.updateById(user);
+            }
+        }
         s.setCourses(req.getCourses());
         return s;
     }
@@ -65,6 +77,14 @@ public class StudentService {
         studentMapper.deleteCourses(id);
         if (req.getCourses() != null && !req.getCourses().isEmpty()) {
             studentMapper.insertCourses(id, req.getCourses());
+        }
+        // 如果指定了用户ID，关联该用户
+        if (req.getUserId() != null) {
+            User user = userMapper.selectById(req.getUserId());
+            if (user != null && "student".equals(user.getRole())) {
+                user.setStudentId(id);
+                userMapper.updateById(user);
+            }
         }
         s.setCourses(req.getCourses());
         return s;

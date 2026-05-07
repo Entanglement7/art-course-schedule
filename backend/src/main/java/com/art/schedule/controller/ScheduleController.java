@@ -2,8 +2,11 @@ package com.art.schedule.controller;
 
 import com.art.schedule.common.Result;
 import com.art.schedule.dto.ManualScheduleRequest;
+import com.art.schedule.dto.SmartScheduleRequest;
+import com.art.schedule.dto.SmartScheduleResponse;
 import com.art.schedule.entity.Schedule;
 import com.art.schedule.service.impl.ScheduleService;
+import com.art.schedule.service.impl.SmartScheduleService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,9 +18,11 @@ import java.util.List;
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
+    private final SmartScheduleService smartScheduleService;
 
-    public ScheduleController(ScheduleService scheduleService) {
+    public ScheduleController(ScheduleService scheduleService, SmartScheduleService smartScheduleService) {
         this.scheduleService = scheduleService;
+        this.smartScheduleService = smartScheduleService;
     }
 
     @GetMapping("/week")
@@ -54,5 +59,10 @@ public class ScheduleController {
     @PostMapping("/manual")
     public Result<List<Schedule>> manual(@Valid @RequestBody ManualScheduleRequest req) {
         return Result.success(scheduleService.createManual(req));
+    }
+
+    @PostMapping("/smart")
+    public Result<SmartScheduleResponse> smartSchedule(@Valid @RequestBody SmartScheduleRequest req) {
+        return Result.success(smartScheduleService.generateSchedule(req));
     }
 }

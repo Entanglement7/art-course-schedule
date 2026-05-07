@@ -111,14 +111,64 @@
         </n-space>
       </template>
     </n-modal>
+
+    <!-- 学生名单对话框 -->
+    <n-modal
+      v-model:show="showStudentModal"
+      preset="card"
+      :title="`${selectedClass?.name} - 学生名单`"
+      style="width: 600px"
+      :bordered="false"
+    >
+      <n-spin :show="loadingStudents">
+        <n-empty v-if="!classStudents.length" description="暂无学生" />
+        <n-list v-else bordered>
+          <n-list-item v-for="student in classStudents" :key="student.id">
+            <template #prefix>
+              <n-avatar
+                round
+                :size="40"
+                :style="{ background: student.gender === '男' ? '#7C3AED' : '#EC4899' }"
+              >
+                {{ student.name.charAt(0) }}
+              </n-avatar>
+            </template>
+            <n-thing>
+              <template #header>
+                {{ student.name }}
+                <n-tag
+                  :type="student.gender === '男' ? 'info' : 'error'"
+                  size="small"
+                  :bordered="false"
+                  style="margin-left: 8px"
+                >
+                  {{ student.gender }}
+                </n-tag>
+              </template>
+              <template #description>
+                <n-space :size="8">
+                  <span>年龄：{{ student.age }}岁</span>
+                  <n-divider vertical />
+                  <span>家长：{{ student.parentName }}</span>
+                  <n-divider vertical />
+                  <span>电话：{{ student.phone }}</span>
+                </n-space>
+              </template>
+            </n-thing>
+          </n-list-item>
+        </n-list>
+      </n-spin>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, h, onMounted } from 'vue'
-import { useMessage, useDialog, NButton, NTag, NSpace, NProgress } from 'naive-ui'
+import { useMessage, useDialog, NButton, NTag, NSpace, NProgress, NAvatar, NThing, NDivider } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import dayjs from 'dayjs'
+import { getClasses, createClass, updateClass, deleteClass, getClassStudents } from '@/api/class'
+import { getTeachers } from '@/api/teacher'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -127,6 +177,10 @@ const loading = ref(false)
 const searchQuery = ref('')
 const filterCategory = ref(null)
 const showModal = ref(false)
+const showStudentModal = ref(false)
+const loadingStudents = ref(false)
+const selectedClass = ref<any>(null)
+const classStudents = ref<any[]>([])
 const modalTitle = ref('添加班级')
 const formRef = ref()
 
@@ -166,18 +220,27 @@ const categoryOptions = [
   { label: '美术', value: '美术' }
 ]
 
-// 教师选项
-const teacherOptions = [
-  { label: '张老师', value: '张老师' },
-  { label: '李老师', value: '李老师' },
-  { label: '王老师', value: '王老师' },
-  { label: '赵老师', value: '赵老师' },
-  { label: '刘老师', value: '刘老师' },
-  { label: '周老师', value: '周老师' }
-]
+const teacherOptions = ref<any[]>([])
 
-// Mock数据
 const classList = ref<any[]>([])
+
+onMounted(async () => {
+  await loadTeachers()
+  await loadData()
+})
+
+async function loadTeachers() {
+  try {
+    const res = await getTeachers({ size: 100 }) as any
+    const list: any[] = res.records ?? res.list ?? res
+    teacherOptions.value = list.map((t: any) => ({
+      label: t.name,
+      value: t.name
+    }))
+  } catch (err: any) {
+    message.error(err.message || '加载教师列表失败')
+  }
+}
 
 // 表格列定义
 const columns = [
@@ -289,7 +352,7 @@ const columns = [
                 size: 'small',
                 type: 'info',
                 text: true,
-                onClick: () => message.info('查看学生名单')
+                onClick: () => handleViewStudents(row)
               },
               { default: () => '学生名单' }
             )
@@ -322,96 +385,27 @@ const filteredData = computed(() => {
   return data
 })
 
-onMounted(() => {
-  loadData()
-})
-
-function loadData() {
+async function loadData() {
   loading.value = true
-
-  // Mock数据
-  setTimeout(() => {
-    classList.value = [
-      {
-        id: 1,
-        name: '钢琴基础A班',
-        category: '音乐',
-        courseName: '钢琴基础',
-        teacher: '张老师',
-        studentCount: 10,
-        currentCount: 8,
-        schedule: '周一、周三 09:00-10:00',
-        startDate: '2024-09-01'
-      },
-      {
-        id: 2,
-        name: '钢琴基础B班',
-        category: '音乐',
-        courseName: '钢琴基础',
-        teacher: '张老师',
-        studentCount: 10,
-        currentCount: 10,
-        schedule: '周二、周四 09:00-10:00',
-        startDate: '2024-09-01'
-      },
-      {
-        id: 3,
-        name: '芭蕾舞初级班',
-        category: '舞蹈',
-        courseName: '芭蕾舞初级',
-        teacher: '李老师',
-        studentCount: 15,
-        currentCount: 12,
-        schedule: '周一、周三 10:00-11:30',
-        startDate: '2024-09-05'
-      },
-      {
-        id: 4,
-        name: '中国舞初级班',
-        category: '舞蹈',
-        courseName: '中国舞初级',
-        teacher: '刘老师',
-        studentCount: 15,
-        currentCount: 14,
-        schedule: '周二、周四 15:00-16:30',
-        startDate: '2024-09-10'
-      },
-      {
-        id: 5,
-        name: '素描基础班',
-        category: '美术',
-        courseName: '素描基础',
-        teacher: '王老师',
-        studentCount: 12,
-        currentCount: 10,
-        schedule: '周六 14:00-16:00',
-        startDate: '2024-09-15'
-      },
-      {
-        id: 6,
-        name: '素描提高班',
-        category: '美术',
-        courseName: '素描提高',
-        teacher: '王老师',
-        studentCount: 10,
-        currentCount: 8,
-        schedule: '周日 14:00-16:00',
-        startDate: '2024-10-01'
-      },
-      {
-        id: 7,
-        name: '水彩入门班',
-        category: '美术',
-        courseName: '水彩入门',
-        teacher: '周老师',
-        studentCount: 12,
-        currentCount: 9,
-        schedule: '周六 10:00-12:00',
-        startDate: '2024-10-05'
-      }
-    ]
+  try {
+    const res = await getClasses({ size: 100 }) as any
+    const list: any[] = res.records ?? res.list ?? res
+    classList.value = list.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      courseName: item.courseName,
+      teacher: item.teacherName || item.teacher,
+      studentCount: item.capacity || item.studentCount,
+      currentCount: item.currentCount || 0,
+      schedule: item.schedule,
+      startDate: item.startDate
+    }))
+  } catch (err: any) {
+    message.error(err.message || '加载班级列表失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 function handleSearch() {
@@ -447,17 +441,35 @@ function handleEdit(row: any) {
   showModal.value = true
 }
 
+async function handleViewStudents(row: any) {
+  selectedClass.value = row
+  showStudentModal.value = true
+  loadingStudents.value = true
+  classStudents.value = []
+
+  try {
+    const data = await getClassStudents(row.id) as any[]
+    classStudents.value = data
+  } catch (err: any) {
+    message.error(err.message || '加载学生名单失败')
+  } finally {
+    loadingStudents.value = false
+  }
+}
+
 function handleDelete(row: any) {
   dialog.warning({
     title: '确认删除',
     content: `确定要删除班级 ${row.name} 吗？`,
     positiveText: '确定',
     negativeText: '取消',
-    onPositiveClick: () => {
-      const index = classList.value.findIndex(item => item.id === row.id)
-      if (index > -1) {
-        classList.value.splice(index, 1)
+    onPositiveClick: async () => {
+      try {
+        await deleteClass(row.id)
         message.success('删除成功')
+        await loadData()
+      } catch (err: any) {
+        message.error(err.message || '删除失败')
       }
     }
   })
@@ -475,26 +487,21 @@ async function handleSubmit() {
     }
 
     if (data.id) {
-      // 编辑
-      const index = classList.value.findIndex(item => item.id === data.id)
-      if (index > -1) {
-        classList.value[index] = {
-          ...data,
-          currentCount: classList.value[index].currentCount
-        }
-        message.success('编辑成功')
-      }
+      await updateClass(data.id, data)
+      message.success('编辑成功')
     } else {
-      // 新增
-      data.id = Date.now()
-      data.currentCount = 0
-      classList.value.unshift(data)
+      await createClass(data)
       message.success('添加成功')
     }
 
     showModal.value = false
-  } catch (error) {
-    console.error('验证失败:', error)
+    await loadData()
+  } catch (error: any) {
+    if (error?.message) {
+      message.error(error.message)
+    } else {
+      console.error('验证失败:', error)
+    }
   }
 }
 </script>

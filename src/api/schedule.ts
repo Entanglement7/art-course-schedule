@@ -14,3 +14,6 @@ export const getClassroomSchedule = (classroomId: number, date?: string) =>
 
 export const createManualSchedule = (data: Record<string, unknown>) =>
   request.post('/api/schedules/manual', data)
+
+export const smartSchedule = (data: Record<string, unknown>) =>
+  request.post('/api/schedules/smart', data)

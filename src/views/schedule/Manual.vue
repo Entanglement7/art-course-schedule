@@ -187,10 +187,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h } from 'vue'
+import { ref, computed, h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, NButton, NTag, NRadio } from 'naive-ui'
 import dayjs from 'dayjs'
+import { getClasses } from '@/api/class'
+import { getClassrooms } from '@/api/classroom'
+import { createManualSchedule } from '@/api/schedule'
 
 const router = useRouter()
 const message = useMessage()
@@ -198,6 +201,7 @@ const message = useMessage()
 const currentStep = ref(1)
 const searchQuery = ref('')
 const filterCategory = ref(null)
+const loading = ref(false)
 
 const formData = ref({
   classId: null,
@@ -225,28 +229,50 @@ const dayOptions = [
   { label: '周日', value: 7 }
 ]
 
-// Mock班级数据
-const classList = ref([
-  { id: 1, name: '钢琴基础A班', category: '音乐', courseName: '钢琴基础', teacher: '张老师', studentCount: 10, currentCount: 8 },
-  { id: 2, name: '钢琴基础B班', category: '音乐', courseName: '钢琴基础', teacher: '张老师', studentCount: 10, currentCount: 10 },
-  { id: 3, name: '芭蕾舞初级班', category: '舞蹈', courseName: '芭蕾舞初级', teacher: '李老师', studentCount: 15, currentCount: 12 },
-  { id: 4, name: '中国舞初级班', category: '舞蹈', courseName: '中国舞初级', teacher: '刘老师', studentCount: 15, currentCount: 14 },
-  { id: 5, name: '素描基础班', category: '美术', courseName: '素描基础', teacher: '王老师', studentCount: 12, currentCount: 10 },
-  { id: 6, name: '素描提高班', category: '美术', courseName: '素描提高', teacher: '王老师', studentCount: 10, currentCount: 8 },
-  { id: 7, name: '水彩入门班', category: '美术', courseName: '水彩入门', teacher: '周老师', studentCount: 12, currentCount: 9 }
-])
+const classList = ref<any[]>([])
+const classroomList = ref<any[]>([])
 
-// Mock教室数据
-const classroomList = ref([
-  { id: 1, name: '音乐教室1', type: '音乐教室', capacity: 10, floor: '3楼' },
-  { id: 2, name: '音乐教室2', type: '音乐教室', capacity: 8, floor: '3楼' },
-  { id: 3, name: '音乐教室3', type: '音乐教室', capacity: 1, floor: '3楼' },
-  { id: 4, name: '舞蹈教室1', type: '舞蹈教室', capacity: 20, floor: '2楼' },
-  { id: 5, name: '舞蹈教室2', type: '舞蹈教室', capacity: 15, floor: '2楼' },
-  { id: 6, name: '美术教室1', type: '美术教室', capacity: 15, floor: '4楼' },
-  { id: 7, name: '美术教室2', type: '美术教室', capacity: 12, floor: '4楼' },
-  { id: 8, name: '多功能教室', type: '多功能教室', capacity: 30, floor: '1楼' }
-])
+onMounted(async () => {
+  await loadClasses()
+  await loadClassrooms()
+})
+
+async function loadClasses() {
+  loading.value = true
+  try {
+    const res = await getClasses({ size: 100 }) as any
+    const list: any[] = res.records ?? res.list ?? res
+    classList.value = list.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      courseName: item.courseName,
+      teacher: item.teacherName || item.teacher,
+      studentCount: item.capacity || item.studentCount,
+      currentCount: item.currentCount || 0
+    }))
+  } catch (err: any) {
+    message.error(err.message || '加载班级列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadClassrooms() {
+  try {
+    const res = await getClassrooms({ size: 100 }) as any
+    const list: any[] = res.records ?? res.list ?? res
+    classroomList.value = list.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      capacity: item.capacity,
+      floor: item.floor
+    }))
+  } catch (err: any) {
+    message.error(err.message || '加载教室列表失败')
+  }
+}
 
 const filteredClasses = computed(() => {
   let data = classList.value
@@ -410,12 +436,8 @@ function prevStep() {
 }
 
 function checkTimeConflict() {
-  // 模拟检查时间冲突
-  message.info('正在检查时间冲突...')
-  setTimeout(() => {
-    message.success('时间可用，无冲突')
-    nextStep()
-  }, 500)
+  // 直接进入下一步，冲突检测由后端在提交时处理
+  nextStep()
 }
 
 function getTimeDisplay() {
@@ -430,10 +452,29 @@ function getTimeDisplay() {
   return `${dayLabel} ${startTime}-${endTime}`
 }
 
-function handleSubmit() {
-  message.loading('正在提交排课...')
+async function handleSubmit() {
+  try {
+    const startTime = dayjs(formData.value.startTime).format('HH:mm:ss')
+    const endTime = dayjs(formData.value.endTime).format('HH:mm:ss')
 
-  setTimeout(() => {
+    // 计算开始日期：从下周一开始
+    const today = dayjs()
+    const nextMonday = today.day() === 0 ? today.add(1, 'day') : today.add(8 - today.day(), 'day')
+    const startDate = nextMonday.format('YYYY-MM-DD')
+
+    const data = {
+      classId: formData.value.classId,
+      courseId: selectedClass.value?.courseId || 1, // 如果班级没有courseId，使用默认值
+      dayOfWeek: formData.value.dayOfWeek,
+      startTime: startTime,
+      endTime: endTime,
+      startDate: startDate,
+      classroomId: formData.value.classroomId,
+      repeatType: formData.value.repeatType,
+      weekCount: formData.value.repeatType === 'weekly' ? formData.value.weekCount : 1
+    }
+
+    await createManualSchedule(data)
     message.success('排课成功！')
 
     // 重置表单
@@ -447,7 +488,9 @@ function handleSubmit() {
       weekCount: 12,
       classroomId: null
     }
-  }, 1000)
+  } catch (err: any) {
+    message.error(err.message || '排课失败')
+  }
 }
 </script>
 

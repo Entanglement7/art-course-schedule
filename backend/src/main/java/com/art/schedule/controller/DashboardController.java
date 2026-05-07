@@ -22,8 +22,18 @@ public class DashboardController {
     public Result<Map<String, Object>> dashboard(@AuthenticationPrincipal User user) {
         Map<String, Object> data = switch (user.getRole()) {
             case "admin" -> dashboardService.adminStats();
-            case "teacher" -> dashboardService.teacherStats(user.getTeacherId());
-            case "student" -> dashboardService.studentStats(user.getStudentId());
+            case "teacher" -> {
+                if (user.getTeacherId() == null) {
+                    yield dashboardService.unlinkedTeacherStats();
+                }
+                yield dashboardService.teacherStats(user.getTeacherId());
+            }
+            case "student" -> {
+                if (user.getStudentId() == null) {
+                    yield dashboardService.unlinkedStudentStats();
+                }
+                yield dashboardService.studentStats(user.getStudentId());
+            }
             default -> Map.of();
         };
         return Result.success(data);

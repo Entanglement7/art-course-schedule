@@ -4,6 +4,7 @@ import com.art.schedule.entity.Schedule;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.*;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @Mapper
@@ -11,7 +12,8 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
 
     @Select("""
         SELECT s.*, cl.name AS class_name, co.name AS course_name, co.category AS course_category,
-               t.name AS teacher_name, cr.name AS classroom_name
+               t.name AS teacher_name, cr.name AS classroom_name,
+               (SELECT COUNT(*) FROM class_students WHERE class_id = s.class_id) AS student_count
         FROM schedules s
         LEFT JOIN classes cl ON s.class_id = cl.id
         LEFT JOIN courses co ON s.course_id = co.id
@@ -25,7 +27,8 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
 
     @Select("""
         SELECT s.*, cl.name AS class_name, co.name AS course_name, co.category AS course_category,
-               t.name AS teacher_name, cr.name AS classroom_name
+               t.name AS teacher_name, cr.name AS classroom_name,
+               (SELECT COUNT(*) FROM class_students WHERE class_id = s.class_id) AS student_count
         FROM schedules s
         LEFT JOIN classes cl ON s.class_id = cl.id
         LEFT JOIN courses co ON s.course_id = co.id
@@ -40,7 +43,8 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
 
     @Select("""
         SELECT s.*, cl.name AS class_name, co.name AS course_name, co.category AS course_category,
-               t.name AS teacher_name, cr.name AS classroom_name
+               t.name AS teacher_name, cr.name AS classroom_name,
+               (SELECT COUNT(*) FROM class_students WHERE class_id = s.class_id) AS student_count
         FROM schedules s
         LEFT JOIN classes cl ON s.class_id = cl.id
         LEFT JOIN courses co ON s.course_id = co.id
@@ -56,7 +60,8 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
 
     @Select("""
         SELECT s.*, cl.name AS class_name, co.name AS course_name, co.category AS course_category,
-               t.name AS teacher_name, cr.name AS classroom_name
+               t.name AS teacher_name, cr.name AS classroom_name,
+               (SELECT COUNT(*) FROM class_students WHERE class_id = s.class_id) AS student_count
         FROM schedules s
         LEFT JOIN classes cl ON s.class_id = cl.id
         LEFT JOIN courses co ON s.course_id = co.id
@@ -68,7 +73,8 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
 
     @Select("""
         SELECT s.*, cl.name AS class_name, co.name AS course_name, co.category AS course_category,
-               t.name AS teacher_name, cr.name AS classroom_name
+               t.name AS teacher_name, cr.name AS classroom_name,
+               (SELECT COUNT(*) FROM class_students WHERE class_id = s.class_id) AS student_count
         FROM schedules s
         LEFT JOIN classes cl ON s.class_id = cl.id
         LEFT JOIN courses co ON s.course_id = co.id
@@ -80,4 +86,44 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
     List<Schedule> selectClassroomSchedule(@Param("classroomId") Long classroomId,
                                            @Param("startDate") LocalDate startDate,
                                            @Param("endDate") LocalDate endDate);
+
+    // 冲突检测查询方法
+    @Select("""
+        SELECT COUNT(*) FROM schedules
+        WHERE teacher_id = #{teacherId}
+          AND day_of_week = #{dayOfWeek}
+          AND ((start_time < #{endTime} AND end_time > #{startTime}))
+    """)
+    int countTeacherConflicts(@Param("teacherId") Long teacherId,
+                             @Param("dayOfWeek") int dayOfWeek,
+                             @Param("startTime") LocalTime startTime,
+                             @Param("endTime") LocalTime endTime);
+
+    @Select("""
+        SELECT COUNT(*) FROM schedules
+        WHERE classroom_id = #{classroomId}
+          AND day_of_week = #{dayOfWeek}
+          AND ((start_time < #{endTime} AND end_time > #{startTime}))
+    """)
+    int countClassroomConflicts(@Param("classroomId") Long classroomId,
+                               @Param("dayOfWeek") int dayOfWeek,
+                               @Param("startTime") LocalTime startTime,
+                               @Param("endTime") LocalTime endTime);
+
+    @Select({
+        "<script>",
+        "SELECT COUNT(*) FROM schedules s",
+        "JOIN class_students cs ON s.class_id = cs.class_id",
+        "WHERE cs.student_id IN",
+        "<foreach collection='studentIds' item='id' open='(' separator=',' close=')'>",
+        "#{id}",
+        "</foreach>",
+        "AND s.day_of_week = #{dayOfWeek}",
+        "AND ((s.start_time &lt; #{endTime} AND s.end_time &gt; #{startTime}))",
+        "</script>"
+    })
+    int countStudentConflicts(@Param("studentIds") List<Long> studentIds,
+                             @Param("dayOfWeek") int dayOfWeek,
+                             @Param("startTime") LocalTime startTime,
+                             @Param("endTime") LocalTime endTime);
 }

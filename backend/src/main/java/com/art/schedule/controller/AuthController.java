@@ -5,19 +5,26 @@ import com.art.schedule.dto.LoginRequest;
 import com.art.schedule.dto.LoginResponse;
 import com.art.schedule.dto.RegisterRequest;
 import com.art.schedule.entity.User;
+import com.art.schedule.mapper.UserMapper;
 import com.art.schedule.service.impl.AuthService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthService authService;
+    private final UserMapper userMapper;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, UserMapper userMapper) {
         this.authService = authService;
+        this.userMapper = userMapper;
     }
 
     @PostMapping("/register")
@@ -39,5 +46,26 @@ public class AuthController {
     public Result<User> me(@AuthenticationPrincipal User user) {
         user.setPassword(null);
         return Result.success(user);
+    }
+
+    @GetMapping("/unlinked-users")
+    public Result<List<Map<String, Object>>> getUnlinkedUsers(@RequestParam String role) {
+        LambdaQueryWrapper<User> query = new LambdaQueryWrapper<>();
+        query.eq(User::getRole, role);
+        if ("teacher".equals(role)) {
+            query.isNull(User::getTeacherId);
+        } else if ("student".equals(role)) {
+            query.isNull(User::getStudentId);
+        }
+        query.select(User::getId, User::getUsername, User::getName);
+
+        List<Map<String, Object>> users = userMapper.selectList(query).stream()
+                .map(u -> Map.<String, Object>of(
+                    "id", u.getId(),
+                    "username", u.getUsername(),
+                    "name", u.getName()
+                ))
+                .toList();
+        return Result.success(users);
     }
 }

@@ -116,6 +116,7 @@ import { ref, computed, h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, useDialog, NButton, NTag, NSpace } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
+import { getClassrooms, createClassroom, updateClassroom, deleteClassroom } from '@/api/classroom'
 
 const router = useRouter()
 const message = useMessage()
@@ -227,45 +228,6 @@ const columns = [
     width: 100
   },
   {
-    title: '设备配置',
-    key: 'equipment',
-    render(row: any) {
-      return h(
-        NSpace,
-        { size: 4 },
-        {
-          default: () =>
-            row.equipment.slice(0, 3).map((item: string) =>
-              h(
-                NTag,
-                { size: 'small', type: 'success', bordered: false },
-                { default: () => item }
-              )
-            ).concat(
-              row.equipment.length > 3
-                ? [h(NTag, { size: 'small', type: 'success', bordered: false }, { default: () => `+${row.equipment.length - 3}` })]
-                : []
-            )
-        }
-      )
-    }
-  },
-  {
-    title: '状态',
-    key: 'status',
-    width: 100,
-    render(row: any) {
-      return h(
-        NTag,
-        {
-          type: row.status === '空闲' ? 'success' : 'warning',
-          bordered: false
-        },
-        { default: () => row.status }
-      )
-    }
-  },
-  {
     title: '操作',
     key: 'actions',
     width: 200,
@@ -338,95 +300,26 @@ onMounted(() => {
   loadData()
 })
 
-function loadData() {
+async function loadData() {
   loading.value = true
-
-  // Mock数据
-  setTimeout(() => {
-    classroomList.value = [
-      {
-        id: 1,
-        name: '音乐教室1',
-        type: '音乐教室',
-        capacity: 10,
-        floor: '3楼',
-        equipment: ['钢琴', '音响设备', '空调', '饮水机'],
-        status: '使用中',
-        remark: '配备施坦威钢琴'
-      },
-      {
-        id: 2,
-        name: '音乐教室2',
-        type: '音乐教室',
-        capacity: 8,
-        floor: '3楼',
-        equipment: ['电子琴', '音响设备', '空调'],
-        status: '空闲',
-        remark: ''
-      },
-      {
-        id: 3,
-        name: '音乐教室3',
-        type: '音乐教室',
-        capacity: 1,
-        floor: '3楼',
-        equipment: ['钢琴', '空调'],
-        status: '使用中',
-        remark: '一对一专用教室'
-      },
-      {
-        id: 4,
-        name: '舞蹈教室1',
-        type: '舞蹈教室',
-        capacity: 20,
-        floor: '2楼',
-        equipment: ['镜子墙', '把杆', '音响设备', '空调', '饮水机'],
-        status: '使用中',
-        remark: '大型舞蹈教室'
-      },
-      {
-        id: 5,
-        name: '舞蹈教室2',
-        type: '舞蹈教室',
-        capacity: 15,
-        floor: '2楼',
-        equipment: ['镜子墙', '把杆', '音响设备', '空调'],
-        status: '空闲',
-        remark: ''
-      },
-      {
-        id: 6,
-        name: '美术教室1',
-        type: '美术教室',
-        capacity: 15,
-        floor: '4楼',
-        equipment: ['画架', '画板', '投影仪', '空调', '饮水机'],
-        status: '使用中',
-        remark: '采光良好'
-      },
-      {
-        id: 7,
-        name: '美术教室2',
-        type: '美术教室',
-        capacity: 12,
-        floor: '4楼',
-        equipment: ['画架', '画板', '空调'],
-        status: '空闲',
-        remark: ''
-      },
-      {
-        id: 8,
-        name: '多功能教室',
-        type: '多功能教室',
-        capacity: 30,
-        floor: '1楼',
-        equipment: ['投影仪', '音响设备', '空调', '饮水机'],
-        status: '空闲',
-        remark: '可用于演出和活动'
-      }
-    ]
+  try {
+    const res = await getClassrooms({ size: 100 }) as any
+    const list: any[] = res.records ?? res.list ?? res
+    classroomList.value = list.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      capacity: item.capacity,
+      floor: item.floor,
+      equipment: item.equipment || [],
+      status: item.status || '空闲',
+      remark: item.remark || ''
+    }))
+  } catch (err: any) {
+    message.error(err.message || '加载教室列表失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 function handleSearch() {
@@ -458,22 +351,6 @@ function handleEdit(row: any) {
   showModal.value = true
 }
 
-function handleDelete(row: any) {
-  dialog.warning({
-    title: '确认删除',
-    content: `确定要删除教室 ${row.name} 吗？`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: () => {
-      const index = classroomList.value.findIndex(item => item.id === row.id)
-      if (index > -1) {
-        classroomList.value.splice(index, 1)
-        message.success('删除成功')
-      }
-    }
-  })
-}
-
 async function handleSubmit() {
   try {
     await formRef.value?.validate()
@@ -481,24 +358,40 @@ async function handleSubmit() {
     const data = { ...formData.value }
 
     if (data.id) {
-      // 编辑
-      const index = classroomList.value.findIndex(item => item.id === data.id)
-      if (index > -1) {
-        classroomList.value[index] = { ...data, status: classroomList.value[index].status }
-        message.success('编辑成功')
-      }
+      await updateClassroom(data.id, data)
+      message.success('编辑成功')
     } else {
-      // 新增
-      data.id = Date.now()
-      data.status = '空闲'
-      classroomList.value.unshift(data)
+      await createClassroom(data)
       message.success('添加成功')
     }
 
     showModal.value = false
-  } catch (error) {
-    console.error('验证失败:', error)
+    await loadData()
+  } catch (error: any) {
+    if (error?.message) {
+      message.error(error.message)
+    } else {
+      console.error('验证失败:', error)
+    }
   }
+}
+
+async function handleDelete(row: any) {
+  dialog.warning({
+    title: '确认删除',
+    content: `确定要删除教室"${row.name}"吗？`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deleteClassroom(row.id)
+        message.success('删除成功')
+        await loadData()
+      } catch (err: any) {
+        message.error(err.message || '删除失败')
+      }
+    }
+  })
 }
 </script>
 

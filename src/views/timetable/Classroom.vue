@@ -17,6 +17,12 @@
           style="width: 200px"
           @update:value="loadSchedule"
         />
+        <n-button type="primary" @click="handlePrint" class="no-print">
+          <template #icon>
+            <n-icon><print-outline /></n-icon>
+          </template>
+          打印课表
+        </n-button>
       </n-space>
 
       <!-- 教室信息卡片 -->
@@ -149,42 +155,32 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
+import { PrintOutline } from '@vicons/ionicons5'
 import dayjs from 'dayjs'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
+import { getClassroomSchedule } from '@/api/schedule'
+import { getClassrooms } from '@/api/classroom'
 
 dayjs.extend(weekOfYear)
 
 const message = useMessage()
 
-const selectedClassroom = ref('音乐教室1')
+const selectedClassroom = ref<number | null>(null)
 const selectedWeek = ref(Date.now())
 const classroomInfo = ref<any>(null)
 const scheduleData = ref<any[]>([])
 const showDetailModal = ref(false)
 const selectedCourse = ref<any>(null)
-
-const classroomOptions = [
-  { label: '音乐教室1', value: '音乐教室1' },
-  { label: '音乐教室2', value: '音乐教室2' },
-  { label: '音乐教室3', value: '音乐教室3' },
-  { label: '舞蹈教室1', value: '舞蹈教室1' },
-  { label: '舞蹈教室2', value: '舞蹈教室2' },
-  { label: '美术教室1', value: '美术教室1' },
-  { label: '美术教室2', value: '美术教室2' },
-  { label: '多功能教室', value: '多功能教室' }
-]
+const classroomOptions = ref<any[]>([])
+const loading = ref(false)
 
 const weekDays = computed(() => {
-  const start = dayjs(selectedWeek.value).startOf('week')
-  return [
-    { label: '周一', value: 1, date: start.add(0, 'day').format('MM-DD') },
-    { label: '周二', value: 2, date: start.add(1, 'day').format('MM-DD') },
-    { label: '周三', value: 3, date: start.add(2, 'day').format('MM-DD') },
-    { label: '周四', value: 4, date: start.add(3, 'day').format('MM-DD') },
-    { label: '周五', value: 5, date: start.add(4, 'day').format('MM-DD') },
-    { label: '周六', value: 6, date: start.add(5, 'day').format('MM-DD') },
-    { label: '周日', value: 7, date: start.add(6, 'day').format('MM-DD') }
-  ]
+  const mon = dayjs(selectedWeek.value).startOf('week').add(1, 'day')
+  return Array.from({ length: 7 }, (_, i) => ({
+    label: ['周一','周二','周三','周四','周五','周六','周日'][i],
+    value: i + 1,
+    date: mon.add(i, 'day').format('MM-DD'),
+  }))
 })
 
 const timeSlots = [
@@ -196,86 +192,77 @@ const timeSlots = [
   { id: 6, time: '15:00-16:00' },
   { id: 7, time: '16:00-17:00' },
   { id: 8, time: '17:00-18:00' },
-  { id: 9, time: '19:00-20:00' },
-  { id: 10, time: '20:00-21:00' }
+  { id: 9, time: '19:00-20:00', start: '19:00' },
+  { id: 10, time: '20:00-21:00', start: '20:00' }
 ]
 
 const weekCourseCount = computed(() => scheduleData.value.length)
 
 const utilizationRate = computed(() => {
-  const totalSlots = 7 * 10 // 7天 * 10个时间段
+  const totalSlots = 7 * 10
   const usedSlots = scheduleData.value.length
   return Math.round((usedSlots / totalSlots) * 100)
 })
 
-onMounted(() => {
-  loadSchedule()
+onMounted(async () => {
+  await loadClassrooms()
+  await loadSchedule()
 })
 
-function loadSchedule() {
-  // Mock数据
-  const classroomSchedules: Record<string, any> = {
-    '音乐教室1': {
-      info: {
-        name: '音乐教室1',
-        type: '音乐教室',
-        capacity: 10,
-        floor: '3楼'
-      },
-      courses: [
-        { id: 1, name: '钢琴基础', className: '钢琴基础A班', teacher: '张老师', time: '09:00-10:00', day: 1, slot: 2, category: '音乐', studentCount: 8 },
-        { id: 2, name: '钢琴基础', className: '钢琴基础A班', teacher: '张老师', time: '09:00-10:00', day: 3, slot: 2, category: '音乐', studentCount: 8 },
-        { id: 3, name: '钢琴基础', className: '钢琴基础B班', teacher: '张老师', time: '10:00-11:00', day: 2, slot: 3, category: '音乐', studentCount: 10 },
-        { id: 4, name: '钢琴基础', className: '钢琴基础B班', teacher: '张老师', time: '10:00-11:00', day: 4, slot: 3, category: '音乐', studentCount: 10 },
-        { id: 5, name: '钢琴进阶', className: '钢琴进阶班', teacher: '张老师', time: '14:00-15:00', day: 1, slot: 5, category: '音乐', studentCount: 8 },
-        { id: 6, name: '钢琴进阶', className: '钢琴进阶班', teacher: '张老师', time: '14:00-15:00', day: 3, slot: 5, category: '音乐', studentCount: 8 }
-      ]
-    },
-    '音乐教室2': {
-      info: {
-        name: '音乐教室2',
-        type: '音乐教室',
-        capacity: 8,
-        floor: '3楼'
-      },
-      courses: [
-        { id: 7, name: '声乐基础', className: '声乐基础班', teacher: '张老师', time: '15:00-16:00', day: 5, slot: 6, category: '音乐', studentCount: 12 },
-        { id: 8, name: '声乐基础', className: '声乐基础班', teacher: '张老师', time: '15:00-16:00', day: 6, slot: 6, category: '音乐', studentCount: 12 }
-      ]
-    },
-    '舞蹈教室1': {
-      info: {
-        name: '舞蹈教室1',
-        type: '舞蹈教室',
-        capacity: 20,
-        floor: '2楼'
-      },
-      courses: [
-        { id: 9, name: '芭蕾舞初级', className: '芭蕾舞初级班', teacher: '李老师', time: '10:00-11:30', day: 1, slot: 3, category: '舞蹈', studentCount: 12 },
-        { id: 10, name: '芭蕾舞初级', className: '芭蕾舞初级班', teacher: '李老师', time: '10:00-11:30', day: 3, slot: 3, category: '舞蹈', studentCount: 12 },
-        { id: 11, name: '芭蕾舞中级', className: '芭蕾舞中级班', teacher: '李老师', time: '14:00-15:30', day: 2, slot: 5, category: '舞蹈', studentCount: 10 },
-        { id: 12, name: '芭蕾舞中级', className: '芭蕾舞中级班', teacher: '李老师', time: '14:00-15:30', day: 4, slot: 5, category: '舞蹈', studentCount: 10 },
-        { id: 13, name: '中国舞初级', className: '中国舞初级班', teacher: '刘老师', time: '15:00-16:30', day: 2, slot: 6, category: '舞蹈', studentCount: 14 },
-        { id: 14, name: '中国舞初级', className: '中国舞初级班', teacher: '刘老师', time: '15:00-16:30', day: 4, slot: 6, category: '舞蹈', studentCount: 14 }
-      ]
-    },
-    '美术教室1': {
-      info: {
-        name: '美术教室1',
-        type: '美术教室',
-        capacity: 15,
-        floor: '4楼'
-      },
-      courses: [
-        { id: 15, name: '素描基础', className: '素描基础班', teacher: '王老师', time: '14:00-16:00', day: 6, slot: 5, category: '美术', studentCount: 10 },
-        { id: 16, name: '素描提高', className: '素描提高班', teacher: '王老师', time: '14:00-16:00', day: 7, slot: 5, category: '美术', studentCount: 8 }
-      ]
+async function loadClassrooms() {
+  try {
+    const res = await getClassrooms({ size: 100 }) as any
+    const list: any[] = res.records ?? res.list ?? res
+    classroomOptions.value = list.map((c: any) => ({ label: c.name, value: c.id }))
+    if (list.length) {
+      selectedClassroom.value = list[0].id
+      classroomInfo.value = list[0]
     }
+  } catch (err: any) {
+    message.error(err.message || '加载教室列表失败')
   }
+}
 
-  const schedule = classroomSchedules[selectedClassroom.value] || classroomSchedules['音乐教室1']
-  classroomInfo.value = schedule.info
-  scheduleData.value = schedule.courses
+async function loadSchedule() {
+  if (!selectedClassroom.value) return
+  loading.value = true
+  try {
+    const monday = dayjs(selectedWeek.value).startOf('week').add(1, 'day')
+    const dateStr = monday.format('YYYY-MM-DD')
+    const data = await getClassroomSchedule(selectedClassroom.value, dateStr) as any[]
+
+    scheduleData.value = data.map((item: any) => ({
+      id: item.id,
+      name: item.courseName || item.className,
+      className: item.className,
+      teacher: item.teacherName,
+      time: `${item.startTime?.substring(0, 5)}-${item.endTime?.substring(0, 5)}`,
+      day: item.dayOfWeek,
+      slot: getSlotId(item.startTime?.substring(0, 5)),
+      category: item.courseCategory,
+      studentCount: item.studentCount || 0
+    }))
+
+    const selectedRoom = classroomOptions.value.find(c => c.value === selectedClassroom.value)
+    if (selectedRoom && classroomInfo.value?.id !== selectedClassroom.value) {
+      const res = await getClassrooms({ size: 100 }) as any
+      const list: any[] = res.records ?? res.list ?? res
+      classroomInfo.value = list.find((c: any) => c.id === selectedClassroom.value)
+    }
+  } catch (err: any) {
+    message.error(err.message || '加载课表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+function getSlotId(startTime: string) {
+  const slotMap: Record<string, number> = {
+    '08:00': 1, '09:00': 2, '10:00': 3, '11:00': 4,
+    '14:00': 5, '15:00': 6, '16:00': 7, '17:00': 8,
+    '19:00': 9, '20:00': 10
+  }
+  return slotMap[startTime] || 1
 }
 
 function getCourseForSlot(day: number, slot: number) {
@@ -314,6 +301,10 @@ function getTypeTag(type: string) {
     '多功能教室': 'success'
   }
   return tagMap[type] || 'default'
+}
+
+function handlePrint() {
+  window.print()
 }
 </script>
 
@@ -418,5 +409,68 @@ function getTypeTag(type: string) {
   font-size: 12px;
   color: #6b7280;
   margin-top: 2px;
+}
+
+@media print {
+  .page-container {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  :deep(.n-card) {
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+
+  :deep(.n-card-header) {
+    padding: 8px 0 !important;
+    border-bottom: 2px solid #E5E7EB;
+    margin: 0 !important;
+  }
+
+  :deep(.n-card__content) {
+    padding: 8px 0 !important;
+    margin: 0 !important;
+  }
+
+  :deep(.n-space) {
+    display: none !important;
+  }
+
+  .timetable-container {
+    overflow: visible !important;
+    margin: 0 !important;
+  }
+
+  .timetable {
+    min-width: 100%;
+    page-break-inside: avoid;
+    margin: 0 !important;
+  }
+
+  .timetable th,
+  .timetable td {
+    padding: 6px 4px;
+  }
+
+  .course-card {
+    box-shadow: none !important;
+    transform: none !important;
+    page-break-inside: avoid;
+  }
+
+  .course-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .empty-text {
+    padding: 10px 0;
+  }
 }
 </style>

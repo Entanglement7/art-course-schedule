@@ -135,6 +135,7 @@
 import { ref, computed, h, onMounted } from 'vue'
 import { useMessage, useDialog, NButton, NTag, NSpace } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
+import { getCourses, createCourse, updateCourse, deleteCourse } from '@/api/course'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -346,135 +347,26 @@ onMounted(() => {
   loadData()
 })
 
-function loadData() {
+async function loadData() {
   loading.value = true
-
-  // Mock数据
-  setTimeout(() => {
-    courseList.value = [
-      {
-        id: 1,
-        name: '钢琴基础',
-        category: '音乐',
-        type: '小组课',
-        duration: 60,
-        ageRange: '6-12岁',
-        price: 200,
-        description: '适合零基础学员，学习基本指法、音阶、简单曲目演奏'
-      },
-      {
-        id: 2,
-        name: '钢琴进阶',
-        category: '音乐',
-        type: '小组课',
-        duration: 60,
-        ageRange: '8-15岁',
-        price: 250,
-        description: '适合有一定基础的学员，学习复杂曲目、演奏技巧提升'
-      },
-      {
-        id: 3,
-        name: '钢琴一对一',
-        category: '音乐',
-        type: '一对一',
-        duration: 60,
-        ageRange: '不限',
-        price: 400,
-        description: '个性化教学，根据学员水平定制课程内容'
-      },
-      {
-        id: 4,
-        name: '声乐基础',
-        category: '音乐',
-        type: '小组课',
-        duration: 60,
-        ageRange: '8-16岁',
-        price: 180,
-        description: '学习发声技巧、气息控制、简单歌曲演唱'
-      },
-      {
-        id: 5,
-        name: '芭蕾舞初级',
-        category: '舞蹈',
-        type: '小组课',
-        duration: 90,
-        ageRange: '5-10岁',
-        price: 220,
-        description: '学习芭蕾基本功、形体训练、简单舞蹈组合'
-      },
-      {
-        id: 6,
-        name: '芭蕾舞中级',
-        category: '舞蹈',
-        type: '小组课',
-        duration: 90,
-        ageRange: '8-14岁',
-        price: 260,
-        description: '提升芭蕾技巧、学习经典芭蕾舞剧片段'
-      },
-      {
-        id: 7,
-        name: '中国舞初级',
-        category: '舞蹈',
-        type: '小组课',
-        duration: 90,
-        ageRange: '6-12岁',
-        price: 200,
-        description: '学习中国舞基本功、身韵、民族民间舞'
-      },
-      {
-        id: 8,
-        name: '街舞入门',
-        category: '舞蹈',
-        type: '小组课',
-        duration: 60,
-        ageRange: '8-16岁',
-        price: 180,
-        description: '学习街舞基础动作、节奏感训练、简单舞蹈编排'
-      },
-      {
-        id: 9,
-        name: '素描基础',
-        category: '美术',
-        type: '小组课',
-        duration: 120,
-        ageRange: '8-16岁',
-        price: 200,
-        description: '学习素描基础知识、几何体、静物写生'
-      },
-      {
-        id: 10,
-        name: '素描提高',
-        category: '美术',
-        type: '小组课',
-        duration: 120,
-        ageRange: '10-18岁',
-        price: 240,
-        description: '深入学习素描技法、人物头像、石膏像写生'
-      },
-      {
-        id: 11,
-        name: '水彩入门',
-        category: '美术',
-        type: '小组课',
-        duration: 90,
-        ageRange: '7-14岁',
-        price: 180,
-        description: '学习水彩基础技法、色彩搭配、简单风景创作'
-      },
-      {
-        id: 12,
-        name: '国画基础',
-        category: '美术',
-        type: '小组课',
-        duration: 90,
-        ageRange: '8-16岁',
-        price: 200,
-        description: '学习国画基础、笔墨技法、花鸟鱼虫创作'
-      }
-    ]
+  try {
+    const res = await getCourses({ size: 100 }) as any
+    const list: any[] = res.records ?? res.list ?? res
+    courseList.value = list.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      type: item.type,
+      duration: item.duration,
+      ageRange: item.ageRange || item.age_range,
+      price: item.price,
+      description: item.description
+    }))
+  } catch (err: any) {
+    message.error(err.message || '加载课程列表失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 function handleSearch() {
@@ -514,11 +406,13 @@ function handleDelete(row: any) {
     content: `确定要删除课程 ${row.name} 吗？`,
     positiveText: '确定',
     negativeText: '取消',
-    onPositiveClick: () => {
-      const index = courseList.value.findIndex(item => item.id === row.id)
-      if (index > -1) {
-        courseList.value.splice(index, 1)
+    onPositiveClick: async () => {
+      try {
+        await deleteCourse(row.id)
         message.success('删除成功')
+        await loadData()
+      } catch (err: any) {
+        message.error(err.message || '删除失败')
       }
     }
   })
@@ -531,22 +425,21 @@ async function handleSubmit() {
     const data = { ...formData.value }
 
     if (data.id) {
-      // 编辑
-      const index = courseList.value.findIndex(item => item.id === data.id)
-      if (index > -1) {
-        courseList.value[index] = data
-        message.success('编辑成功')
-      }
+      await updateCourse(data.id, data)
+      message.success('编辑成功')
     } else {
-      // 新增
-      data.id = Date.now()
-      courseList.value.unshift(data)
+      await createCourse(data)
       message.success('添加成功')
     }
 
     showModal.value = false
-  } catch (error) {
-    console.error('验证失败:', error)
+    await loadData()
+  } catch (error: any) {
+    if (error?.message) {
+      message.error(error.message)
+    } else {
+      console.error('验证失败:', error)
+    }
   }
 }
 </script>

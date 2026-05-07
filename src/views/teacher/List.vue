@@ -95,6 +95,21 @@
             style="width: 100%"
           />
         </n-form-item>
+
+        <n-form-item label="关联账号" path="userId">
+          <n-select
+            v-model:value="formData.userId"
+            placeholder="请选择要关联的教师账号"
+            clearable
+            :options="unlinkedUserOptions"
+            :loading="loadingUsers"
+          />
+          <template #feedback>
+            <span style="font-size: 12px; color: #999">
+              只显示未关联的教师账号，教师需先注册账号
+            </span>
+          </template>
+        </n-form-item>
       </n-form>
 
       <template #footer>
@@ -113,6 +128,7 @@ import { useRouter } from 'vue-router'
 import { useMessage, useDialog, NButton, NTag, NSpace } from 'naive-ui'
 import { AddOutline, SearchOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import dayjs from 'dayjs'
+import { getTeachers, createTeacher, updateTeacher, deleteTeacher } from '@/api/teacher'
 
 const router = useRouter()
 const message = useMessage()
@@ -124,6 +140,8 @@ const filterSpecialty = ref(null)
 const showModal = ref(false)
 const modalTitle = ref('添加教师')
 const formRef = ref()
+const loadingUsers = ref(false)
+const unlinkedUserOptions = ref<any[]>([])
 
 const formData = ref({
   id: null,
@@ -131,7 +149,8 @@ const formData = ref({
   phone: '',
   specialty: null,
   courses: [],
-  joinDate: null
+  joinDate: null,
+  userId: null
 })
 
 const rules = {
@@ -332,55 +351,25 @@ onMounted(() => {
   loadData()
 })
 
-function loadData() {
+async function loadData() {
   loading.value = true
-
-  // Mock数据
-  setTimeout(() => {
-    teacherList.value = [
-      {
-        id: 1,
-        name: '张老师',
-        phone: '13800138001',
-        specialty: '钢琴',
-        courses: ['钢琴基础', '钢琴进阶'],
-        joinDate: '2023-01-15'
-      },
-      {
-        id: 2,
-        name: '李老师',
-        phone: '13800138002',
-        specialty: '芭蕾舞',
-        courses: ['芭蕾舞初级', '芭蕾舞中级'],
-        joinDate: '2023-03-20'
-      },
-      {
-        id: 3,
-        name: '王老师',
-        phone: '13800138003',
-        specialty: '素描',
-        courses: ['素描基础', '素描提高'],
-        joinDate: '2023-05-10'
-      },
-      {
-        id: 4,
-        name: '赵老师',
-        phone: '13800138004',
-        specialty: '声乐',
-        courses: ['声乐基础'],
-        joinDate: '2023-06-01'
-      },
-      {
-        id: 5,
-        name: '刘老师',
-        phone: '13800138005',
-        specialty: '中国舞',
-        courses: ['中国舞初级', '中国舞中级', '中国舞高级'],
-        joinDate: '2023-07-15'
-      }
-    ]
+  try {
+    const res = await getTeachers({ size: 100 }) as any
+    const list: any[] = res.records ?? res.list ?? res
+    teacherList.value = list.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      phone: item.phone,
+      specialty: item.specialty,
+      courses: item.courses || [],
+      joinDate: item.joinDate,
+      userId: item.userId
+    }))
+  } catch (err: any) {
+    message.error(err.message || '加载教师列表失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 function handleSearch() {
@@ -400,8 +389,10 @@ function handleAdd() {
     phone: '',
     specialty: null,
     courses: [],
-    joinDate: null
+    joinDate: null,
+    userId: null
   }
+  loadUnlinkedUsers()
   showModal.value = true
 }
 
@@ -409,25 +400,33 @@ function handleEdit(row: any) {
   modalTitle.value = '编辑教师'
   formData.value = {
     ...row,
-    joinDate: new Date(row.joinDate).getTime()
+    joinDate: new Date(row.joinDate).getTime(),
+    userId: null
   }
+  loadUnlinkedUsers()
   showModal.value = true
 }
 
-function handleDelete(row: any) {
-  dialog.warning({
-    title: '确认删除',
-    content: `确定要删除教师 ${row.name} 吗？`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: () => {
-      const index = teacherList.value.findIndex(item => item.id === row.id)
-      if (index > -1) {
-        teacherList.value.splice(index, 1)
-        message.success('删除成功')
+async function loadUnlinkedUsers() {
+  loadingUsers.value = true
+  try {
+    const response = await fetch('http://localhost:8080/api/auth/unlinked-users?role=teacher', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
+    })
+    const result = await response.json()
+    if (result.code === 200) {
+      unlinkedUserOptions.value = result.data.map((user: any) => ({
+        label: `${user.name} (${user.username})`,
+        value: user.id
+      }))
     }
-  })
+  } catch (error) {
+    console.error('加载未关联账号失败:', error)
+  } finally {
+    loadingUsers.value = false
+  }
 }
 
 async function handleSubmit() {
@@ -442,23 +441,43 @@ async function handleSubmit() {
     }
 
     if (data.id) {
-      // 编辑
-      const index = teacherList.value.findIndex(item => item.id === data.id)
-      if (index > -1) {
-        teacherList.value[index] = data
-        message.success('编辑成功')
-      }
+      await updateTeacher(data.id, data)
+      message.success('编辑成功')
     } else {
-      // 新增
-      data.id = Date.now()
-      teacherList.value.unshift(data)
+      await createTeacher(data)
       message.success('添加成功')
+      if (data.userId) {
+        message.info('已关联教师账号，该账号现在可以登录查看课表')
+      }
     }
 
     showModal.value = false
-  } catch (error) {
-    console.error('验证失败:', error)
+    await loadData()
+  } catch (error: any) {
+    if (error?.message) {
+      message.error(error.message)
+    } else {
+      console.error('验证失败:', error)
+    }
   }
+}
+
+async function handleDelete(row: any) {
+  dialog.warning({
+    title: '确认删除',
+    content: `确定要删除教师"${row.name}"吗？`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deleteTeacher(row.id)
+        message.success('删除成功')
+        await loadData()
+      } catch (err: any) {
+        message.error(err.message || '删除失败')
+      }
+    }
+  })
 }
 </script>
 

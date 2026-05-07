@@ -122,6 +122,7 @@ import { useRouter } from 'vue-router'
 import { useMessage, useDialog, NButton, NTag, NSpace, NAvatar } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import dayjs from 'dayjs'
+import { getStudents, createStudent, updateStudent, deleteStudent } from '@/api/student'
 
 const router = useRouter()
 const message = useMessage()
@@ -337,95 +338,26 @@ onMounted(() => {
   loadData()
 })
 
-function loadData() {
+async function loadData() {
   loading.value = true
-
-  // Mock数据
-  setTimeout(() => {
-    studentList.value = [
-      {
-        id: 1,
-        name: '小明',
-        age: 8,
-        gender: '男',
-        parentName: '明爸爸',
-        phone: '13900139001',
-        courses: ['钢琴基础', '素描基础'],
-        enrollDate: '2024-09-01'
-      },
-      {
-        id: 2,
-        name: '小红',
-        age: 7,
-        gender: '女',
-        parentName: '红妈妈',
-        phone: '13900139002',
-        courses: ['芭蕾舞初级', '钢琴基础'],
-        enrollDate: '2024-09-01'
-      },
-      {
-        id: 3,
-        name: '小刚',
-        age: 9,
-        gender: '男',
-        parentName: '刚爸爸',
-        phone: '13900139003',
-        courses: ['街舞入门', '素描提高'],
-        enrollDate: '2024-09-05'
-      },
-      {
-        id: 4,
-        name: '小丽',
-        age: 6,
-        gender: '女',
-        parentName: '丽妈妈',
-        phone: '13900139004',
-        courses: ['芭蕾舞初级'],
-        enrollDate: '2024-09-10'
-      },
-      {
-        id: 5,
-        name: '小芳',
-        age: 8,
-        gender: '女',
-        parentName: '芳妈妈',
-        phone: '13900139005',
-        courses: ['中国舞初级', '水彩入门'],
-        enrollDate: '2024-09-15'
-      },
-      {
-        id: 6,
-        name: '小华',
-        age: 10,
-        gender: '男',
-        parentName: '华爸爸',
-        phone: '13900139006',
-        courses: ['素描提高', '国画基础'],
-        enrollDate: '2024-10-01'
-      },
-      {
-        id: 7,
-        name: '小美',
-        age: 7,
-        gender: '女',
-        parentName: '美妈妈',
-        phone: '13900139007',
-        courses: ['声乐基础', '钢琴基础'],
-        enrollDate: '2024-10-05'
-      },
-      {
-        id: 8,
-        name: '小强',
-        age: 9,
-        gender: '男',
-        parentName: '强爸爸',
-        phone: '13900139008',
-        courses: ['街舞入门'],
-        enrollDate: '2024-10-10'
-      }
-    ]
+  try {
+    const res = await getStudents({ size: 100 }) as any
+    const list: any[] = res.records ?? res.list ?? res
+    studentList.value = list.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      age: item.age,
+      gender: item.gender,
+      parentName: item.parentName,
+      phone: item.phone,
+      courses: item.courses || [],
+      enrollDate: item.enrollDate
+    }))
+  } catch (err: any) {
+    message.error(err.message || '加载学生列表失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 function handleSearch() {
@@ -461,22 +393,6 @@ function handleEdit(row: any) {
   showModal.value = true
 }
 
-function handleDelete(row: any) {
-  dialog.warning({
-    title: '确认删除',
-    content: `确定要删除学生 ${row.name} 吗？`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: () => {
-      const index = studentList.value.findIndex(item => item.id === row.id)
-      if (index > -1) {
-        studentList.value.splice(index, 1)
-        message.success('删除成功')
-      }
-    }
-  })
-}
-
 async function handleSubmit() {
   try {
     await formRef.value?.validate()
@@ -489,23 +405,40 @@ async function handleSubmit() {
     }
 
     if (data.id) {
-      // 编辑
-      const index = studentList.value.findIndex(item => item.id === data.id)
-      if (index > -1) {
-        studentList.value[index] = data
-        message.success('编辑成功')
-      }
+      await updateStudent(data.id, data)
+      message.success('编辑成功')
     } else {
-      // 新增
-      data.id = Date.now()
-      studentList.value.unshift(data)
+      await createStudent(data)
       message.success('添加成功')
     }
 
     showModal.value = false
-  } catch (error) {
-    console.error('验证失败:', error)
+    await loadData()
+  } catch (error: any) {
+    if (error?.message) {
+      message.error(error.message)
+    } else {
+      console.error('验证失败:', error)
+    }
   }
+}
+
+async function handleDelete(row: any) {
+  dialog.warning({
+    title: '确认删除',
+    content: `确定要删除学生"${row.name}"吗？`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deleteStudent(row.id)
+        message.success('删除成功')
+        await loadData()
+      } catch (err: any) {
+        message.error(err.message || '删除失败')
+      }
+    }
+  })
 }
 </script>
 

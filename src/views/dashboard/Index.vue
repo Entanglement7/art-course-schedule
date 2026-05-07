@@ -193,6 +193,11 @@
 
     <!-- 学生视图 -->
     <template v-else-if="userRole === 'student'">
+      <!-- 未关联提示 -->
+      <n-alert v-if="studentStats.unlinked" type="warning" title="账号未关联" style="margin-bottom: 16px">
+        {{ studentStats.message }}
+      </n-alert>
+
       <!-- 学生统计卡片 -->
       <n-grid :x-gap="16" :y-gap="16" :cols="4" responsive="screen">
         <n-gi :span="isMobile ? 2 : 1">
@@ -252,8 +257,8 @@
                 </n-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">{{ studentStats.attendanceRate }}%</div>
-                <div class="stat-label">出勤率</div>
+                <div class="stat-value">{{ studentStats.weekHours }}</div>
+                <div class="stat-label">本周课时</div>
               </div>
             </div>
           </n-card>
@@ -366,6 +371,11 @@
 
     <!-- 教师视图 -->
     <template v-else-if="userRole === 'teacher'">
+      <!-- 未关联提示 -->
+      <n-alert v-if="teacherStats.unlinked" type="warning" title="账号未关联" style="margin-bottom: 16px">
+        {{ teacherStats.message }}
+      </n-alert>
+
       <!-- 教师统计卡片 -->
       <n-grid :x-gap="16" :y-gap="16" :cols="4" responsive="screen">
         <n-gi :span="isMobile ? 2 : 1">
@@ -508,6 +518,7 @@ import {
 } from '@vicons/ionicons5'
 import { useUserStore } from '@/stores/user'
 import { getAdjustments } from '@/api/adjustment'
+import { getDashboard } from '@/api/dashboard'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -528,14 +539,18 @@ const stats = ref({
 
 // 学生统计数据
 const studentStats = ref({
+  unlinked: false,
+  message: '',
   enrolledCourses: 0,
   todayClasses: 0,
   totalHours: 0,
-  attendanceRate: 0
+  weekHours: 0
 })
 
 // 教师统计数据
 const teacherStats = ref({
+  unlinked: false,
+  message: '',
   myClasses: 0,
   todayClasses: 0,
   totalStudents: 0,
@@ -569,166 +584,108 @@ onMounted(() => {
   loadPendingTasks()
 })
 
-function loadData() {  if (userRole.value === 'admin') {
-    loadAdminData()
-  } else if (userRole.value === 'teacher') {
-    loadTeacherData()
-  } else if (userRole.value === 'student') {
-    loadStudentData()
+async function loadData() {
+  try {
+    const res = await getDashboard() as any
+    const data = res.data || res
+
+    if (userRole.value === 'admin') {
+      loadAdminData(data)
+    } else if (userRole.value === 'teacher') {
+      loadTeacherData(data)
+    } else if (userRole.value === 'student') {
+      loadStudentData(data)
+    }
+  } catch (error) {
+    console.error('Failed to load dashboard data:', error)
   }
 }
 
-function loadAdminData() {
-  // 管理员数据
+function loadAdminData(data: any) {
   stats.value = {
-    totalStudents: 156,
-    totalTeachers: 24,
-    todayCourses: 18,
-    totalClassrooms: 12
+    totalStudents: data.totalStudents || 0,
+    totalTeachers: data.totalTeachers || 0,
+    todayCourses: data.todayCourses || 0,
+    totalClassrooms: data.totalClassrooms || 0
   }
 
+  const courseStatsData = data.courseStats || {}
   courseStats.value = {
-    music: 45,
-    dance: 38,
-    art: 32,
-    total: 115
+    music: courseStatsData.music || 0,
+    dance: courseStatsData.dance || 0,
+    art: courseStatsData.art || 0,
+    total: courseStatsData.total || 0
   }
 
-  todayCourses.value = [
-    {
-      id: 1,
-      name: '钢琴基础班',
-      category: '音乐',
-      time: '09:00-10:00',
-      teacher: '张老师',
-      classroom: '音乐教室1'
-    },
-    {
-      id: 2,
-      name: '芭蕾舞初级',
-      category: '舞蹈',
-      time: '10:00-11:30',
-      teacher: '李老师',
-      classroom: '舞蹈教室1'
-    },
-    {
-      id: 3,
-      name: '素描提高班',
-      category: '美术',
-      time: '14:00-16:00',
-      teacher: '王老师',
-      classroom: '美术教室2'
-    },
-    {
-      id: 4,
-      name: '声乐一对一',
-      category: '音乐',
-      time: '16:00-17:00',
-      teacher: '赵老师',
-      classroom: '音乐教室3'
-    }
-  ]
-
-
+  // 转换后端数据格式为前端需要的格式
+  const courseList = data.todayCourseList || []
+  todayCourses.value = courseList.map((item: any) => ({
+    id: item.id,
+    name: item.className,
+    category: item.courseCategory,
+    time: `${item.startTime?.substring(0, 5)}-${item.endTime?.substring(0, 5)}`,
+    teacher: item.teacherName,
+    classroom: item.classroomName
+  }))
 }
 
-function loadTeacherData() {
-  // 教师数据
+function loadTeacherData(data: any) {
+  if (data.unlinked) {
+    teacherStats.value.unlinked = true
+    teacherStats.value.message = data.message || 'Account not linked to teacher profile'
+    return
+  }
+
   teacherStats.value = {
-    myClasses: 4,
-    todayClasses: 3,
-    totalStudents: 32,
-    weekHours: 12
+    unlinked: false,
+    message: '',
+    myClasses: data.myClasses || 0,
+    todayClasses: data.todayClasses || 0,
+    totalStudents: data.totalStudents || 0,
+    weekHours: data.weekHours || 0
   }
 
-  todayCourses.value = [
-    {
-      id: 1,
-      name: '钢琴基础A班',
-      category: '音乐',
-      time: '09:00-10:00',
-      classroom: '音乐教室1',
-      studentCount: 8
-    },
-    {
-      id: 2,
-      name: '钢琴基础B班',
-      category: '音乐',
-      time: '10:00-11:00',
-      classroom: '音乐教室1',
-      studentCount: 10
-    },
-    {
-      id: 3,
-      name: '声乐基础班',
-      category: '音乐',
-      time: '15:00-16:00',
-      classroom: '音乐教室2',
-      studentCount: 12
-    }
-  ]
-
-
+  // 转换后端数据格式为前端需要的格式
+  const courseList = data.todayCourseList || []
+  todayCourses.value = courseList.map((item: any) => ({
+    id: item.id,
+    name: item.className,
+    category: item.courseCategory,
+    time: `${item.startTime?.substring(0, 5)}-${item.endTime?.substring(0, 5)}`,
+    classroom: item.classroomName,
+    studentCount: item.studentCount || 0
+  }))
 }
 
-function loadStudentData() {
-  // 学生数据
-  studentStats.value = {
-    enrolledCourses: 2,
-    todayClasses: 1,
-    totalHours: 48,
-    attendanceRate: 95
+function loadStudentData(data: any) {
+  if (data.unlinked) {
+    studentStats.value.unlinked = true
+    studentStats.value.message = data.message || 'Account not linked to student profile'
+    return
   }
 
-  // 学生报名的课程
-  studentCourses.value = [
-    {
-      id: 1,
-      name: '钢琴基础',
-      category: '音乐',
-      teacher: '张老师',
-      schedule: '周一、周三 09:00-10:00',
-      classroom: '音乐教室1'
-    },
-    {
-      id: 2,
-      name: '素描基础',
-      category: '美术',
-      teacher: '王老师',
-      schedule: '周六 14:00-16:00',
-      classroom: '美术教室1'
-    }
-  ]
+  studentStats.value = {
+    unlinked: false,
+    message: '',
+    enrolledCourses: data.enrolledCourses || 0,
+    todayClasses: data.todayClasses || 0,
+    totalHours: data.totalHours || 0,
+    weekHours: data.weekHours || 0
+  }
 
-  // 学生所在班级
-  studentClasses.value = [
-    {
-      id: 1,
-      name: '钢琴基础A班',
-      teacher: '张老师',
-      studentCount: 8
-    },
-    {
-      id: 2,
-      name: '素描基础班',
-      teacher: '王老师',
-      studentCount: 10
-    }
-  ]
+  studentCourses.value = data.myCourses || []
+  studentClasses.value = data.myClasses || []
 
-  // 今日课程
-  todayCourses.value = [
-    {
-      id: 1,
-      name: '钢琴基础',
-      category: '音乐',
-      time: '09:00-10:00',
-      teacher: '张老师',
-      classroom: '音乐教室1'
-    }
-  ]
-
-
+  // 转换后端数据格式为前端需要的格式
+  const courseList = data.todayCourseList || []
+  todayCourses.value = courseList.map((item: any) => ({
+    id: item.id,
+    name: item.className,
+    category: item.courseCategory,
+    time: `${item.startTime?.substring(0, 5)}-${item.endTime?.substring(0, 5)}`,
+    teacher: item.teacherName,
+    classroom: item.classroomName
+  }))
 }
 
 async function loadPendingTasks() {

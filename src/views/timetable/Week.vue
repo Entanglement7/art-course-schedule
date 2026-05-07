@@ -10,6 +10,12 @@
             @update:value="handleWeekChange"
           />
           <n-button @click="goToday">今天</n-button>
+          <n-button type="primary" @click="handlePrint">
+            <template #icon>
+              <n-icon><print-outline /></n-icon>
+            </template>
+            打印课表
+          </n-button>
         </n-space>
       </template>
 
@@ -136,11 +142,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useMessage } from 'naive-ui'
-import { PersonOutline, BusinessOutline } from '@vicons/ionicons5'
+import { PersonOutline, BusinessOutline, PrintOutline } from '@vicons/ionicons5'
 import dayjs from 'dayjs'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
+import { getWeekSchedule } from '@/api/schedule'
 
 dayjs.extend(weekOfYear)
 
@@ -148,7 +155,7 @@ const message = useMessage()
 
 const currentWeek = ref(Date.now())
 const showDetailModal = ref(false)
-
+const loading = ref(false)
 const selectedCourse = ref<any>(null)
 
 // 星期
@@ -176,122 +183,40 @@ const timeSlots = [
   { id: 10, start: '20:00', end: '21:00' }
 ]
 
-// Mock课程数据
 const courses = ref<any[]>([])
 
 onMounted(() => {
   loadCourses()
 })
 
-function loadCourses() {
-  // Mock数据
-  courses.value = [
-    {
-      id: 1,
-      name: '钢琴基础班',
-      category: '音乐',
-      teacher: '张老师',
-      classroom: '音乐教室1',
-      dayOfWeek: 1,
-      startTime: '09:00',
-      endTime: '10:00',
-      type: '小组课',
-      students: [
-        { id: 1, name: '小明' },
-        { id: 2, name: '小红' },
-        { id: 3, name: '小刚' }
-      ]
-    },
-    {
-      id: 2,
-      name: '芭蕾舞初级',
-      category: '舞蹈',
-      teacher: '李老师',
-      classroom: '舞蹈教室1',
-      dayOfWeek: 1,
-      startTime: '10:00',
-      endTime: '11:00',
-      type: '小组课',
-      students: [
-        { id: 4, name: '小丽' },
-        { id: 5, name: '小芳' }
-      ]
-    },
-    {
-      id: 3,
-      name: '素描提高班',
-      category: '美术',
-      teacher: '王老师',
-      classroom: '美术教室2',
-      dayOfWeek: 2,
-      startTime: '14:00',
-      endTime: '16:00',
-      type: '小组课',
-      students: [
-        { id: 6, name: '小华' },
-        { id: 7, name: '小强' }
-      ]
-    },
-    {
-      id: 4,
-      name: '声乐一对一',
-      category: '音乐',
-      teacher: '赵老师',
-      classroom: '音乐教室3',
-      dayOfWeek: 3,
-      startTime: '16:00',
-      endTime: '17:00',
-      type: '一对一',
-      students: [
-        { id: 8, name: '小美' }
-      ]
-    },
-    {
-      id: 5,
-      name: '中国舞中级',
-      category: '舞蹈',
-      teacher: '刘老师',
-      classroom: '舞蹈教室2',
-      dayOfWeek: 4,
-      startTime: '15:00',
-      endTime: '16:00',
-      type: '小组课',
-      students: [
-        { id: 9, name: '小兰' },
-        { id: 10, name: '小梅' }
-      ]
-    },
-    {
-      id: 6,
-      name: '水彩入门',
-      category: '美术',
-      teacher: '周老师',
-      classroom: '美术教室1',
-      dayOfWeek: 5,
-      startTime: '10:00',
-      endTime: '11:00',
-      type: '小组课',
-      students: [
-        { id: 11, name: '小雪' },
-        { id: 12, name: '小冰' }
-      ]
-    },
-    {
-      id: 7,
-      name: '钢琴进阶',
-      category: '音乐',
-      teacher: '张老师',
-      classroom: '音乐教室1',
-      dayOfWeek: 6,
-      startTime: '09:00',
-      endTime: '10:00',
-      type: '小组课',
-      students: [
-        { id: 13, name: '小天' },
-        { id: 14, name: '小地' }
-      ]
-    }
-  ]
+watch(currentWeek, () => {
+  loadCourses()
+})
+
+async function loadCourses() {
+  loading.value = true
+  try {
+    const monday = dayjs(currentWeek.value).startOf('week').add(1, 'day')
+    const dateStr = monday.format('YYYY-MM-DD')
+    const data = await getWeekSchedule(dateStr) as any[]
+
+    courses.value = data.map((item: any) => ({
+      id: item.id,
+      name: item.className,
+      category: item.courseCategory,
+      teacher: item.teacherName,
+      classroom: item.classroomName,
+      dayOfWeek: item.dayOfWeek,
+      startTime: item.startTime?.substring(0, 5),
+      endTime: item.endTime?.substring(0, 5),
+      type: item.courseType || '小组课',
+      students: []
+    }))
+  } catch (err: any) {
+    message.error(err.message || '加载课表失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 // 获取指定日期和时间段的课程
@@ -304,7 +229,6 @@ function getCourses(dayOfWeek: number, timeSlot: any) {
     const slotStart = timeSlot.start
     const slotEnd = timeSlot.end
 
-    // 判断课程时间是否在时间段内
     return (
       (courseStart >= slotStart && courseStart < slotEnd) ||
       (courseEnd > slotStart && courseEnd <= slotEnd) ||
@@ -369,6 +293,11 @@ function handleAdjustCourse() {
 function handleCancelCourse() {
   message.warning('取消课程功能开发中')
   showDetailModal.value = false
+}
+
+// 打印课表
+function handlePrint() {
+  window.print()
 }
 
 </script>
@@ -517,6 +446,71 @@ function handleCancelCourse() {
 
   .course-info {
     font-size: 11px;
+  }
+}
+
+@media print {
+  * {
+    overflow: visible !important;
+  }
+
+  .page-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  :deep(.n-card) {
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    height: auto !important;
+  }
+
+  :deep(.n-card-header) {
+    padding: 8px 0 !important;
+    border-bottom: 2px solid #E5E7EB;
+    margin: 0 !important;
+  }
+
+  :deep(.n-card-header__extra) {
+    display: none !important;
+  }
+
+  :deep(.n-card__content) {
+    padding: 8px 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  .timetable-container {
+    overflow: visible !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .timetable-grid {
+    width: 100% !important;
+    min-width: 100% !important;
+    page-break-inside: avoid;
+    margin: 0 !important;
+    display: grid !important;
+  }
+
+  .course-cell {
+    cursor: default;
+    overflow: visible !important;
+  }
+
+  .course-card {
+    box-shadow: none !important;
+    transform: none !important;
+    page-break-inside: avoid;
+  }
+
+  .course-card:hover {
+    transform: none;
+    box-shadow: none;
   }
 }
 </style>

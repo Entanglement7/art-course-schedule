@@ -33,4 +33,6 @@ public class Schedule {
     private String teacherName;
     @TableField(exist = false)
     private String classroomName;
+    @TableField(exist = false)
+    private Integer studentCount;
 }

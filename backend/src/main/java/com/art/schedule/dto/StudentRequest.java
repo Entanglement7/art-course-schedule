@@ -21,4 +21,5 @@ public class StudentRequest {
     @NotNull(message = "入学日期不能为空")
     private String enrollDate;
     private List<String> courses;
+    private Long userId;  // 关联的用户账号ID
 }

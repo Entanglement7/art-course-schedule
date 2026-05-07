@@ -476,4 +476,57 @@ function handleUserAction(key: string) {
     font-size: 13px;
   }
 }
+
+@media print {
+  * {
+    overflow: visible !important;
+  }
+
+  .n-layout-sider {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+  }
+
+  .n-layout-header {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .n-layout-content {
+    padding: 0 !important;
+    background-color: white !important;
+    margin: 0 !important;
+    height: auto !important;
+    min-height: auto !important;
+  }
+
+  .n-layout {
+    height: auto !important;
+    min-height: auto !important;
+    display: block !important;
+  }
+
+  :deep(.n-layout) {
+    display: block !important;
+    height: auto !important;
+    min-height: auto !important;
+  }
+
+  :deep(.n-layout-scroll-container) {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  :deep(.n-scrollbar) {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  :deep(.n-scrollbar-container) {
+    overflow: visible !important;
+    height: auto !important;
+  }
+}
 </style>

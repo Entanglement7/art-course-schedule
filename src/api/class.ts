@@ -5,6 +5,9 @@ export const getClasses = (params?: Record<string, unknown>) =>
 
 export const getClass = (id: number) => request.get(`/api/classes/${id}`)
 
+export const getClassStudents = (id: number) =>
+  request.get(`/api/classes/${id}/students`)
+
 export const createClass = (data: Record<string, unknown>) =>
   request.post('/api/classes', data)
 

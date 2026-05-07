@@ -71,8 +71,11 @@ public class DashboardService {
 
     public Map<String, Object> studentStats(Long studentId) {
         Map<String, Object> data = new HashMap<>();
-        long enrolledCourses = studentMapper.selectCourses(studentId).size();
-        data.put("enrolledCourses", enrolledCourses);
+
+        // 获取学生报名的课程详细信息
+        List<Map<String, Object>> courseDetails = studentMapper.selectCourseDetails(studentId);
+        data.put("enrolledCourses", courseDetails.size());
+        data.put("myCourses", courseDetails);
 
         LocalDate today = LocalDate.now();
         List<Schedule> todaySchedules = scheduleMapper.selectStudentSchedule(studentId, today, today);
@@ -82,13 +85,58 @@ public class DashboardService {
         long totalHours = scheduleMapper.selectStudentSchedule(studentId,
                 LocalDate.now().minusMonths(6), LocalDate.now()).size();
         data.put("totalHours", totalHours);
-        data.put("attendanceRate", 95);
 
-        List<Long> classIds = clazzMapper.selectList(
+        // 计算本周课时
+        LocalDate monday = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        LocalDate sunday = monday.plusDays(6);
+        long weekHours = scheduleMapper.selectStudentSchedule(studentId, monday, sunday).size();
+        data.put("weekHours", weekHours);
+
+        // 获取学生所在的班级信息
+        List<Clazz> myClasses = clazzMapper.selectList(
                 new LambdaQueryWrapper<Clazz>().inSql(Clazz::getId,
-                        "SELECT class_id FROM class_students WHERE student_id = " + studentId))
-                .stream().map(Clazz::getId).toList();
-        data.put("studentClasses", classIds);
+                        "SELECT class_id FROM class_students WHERE student_id = " + studentId));
+
+        // 为每个班级添加教师名字
+        List<Map<String, Object>> classesWithTeacher = myClasses.stream().map(clazz -> {
+            Map<String, Object> classInfo = new HashMap<>();
+            classInfo.put("id", clazz.getId());
+            classInfo.put("name", clazz.getName());
+            classInfo.put("studentCount", clazzMapper.countStudents(clazz.getId()));
+
+            // 获取教师名字
+            Teacher teacher = teacherMapper.selectById(clazz.getTeacherId());
+            classInfo.put("teacher", teacher != null ? teacher.getName() : "");
+
+            return classInfo;
+        }).toList();
+
+        data.put("myClasses", classesWithTeacher);
+        return data;
+    }
+
+    public Map<String, Object> unlinkedTeacherStats() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("unlinked", true);
+        data.put("message", "您的账号尚未关联教师信息，请联系管理员完成关联");
+        data.put("myClasses", 0);
+        data.put("todayClasses", 0);
+        data.put("totalStudents", 0);
+        data.put("weekHours", 0);
+        data.put("todayCourseList", List.of());
+        return data;
+    }
+
+    public Map<String, Object> unlinkedStudentStats() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("unlinked", true);
+        data.put("message", "您的账号尚未关联学生信息，请联系管理员完成关联");
+        data.put("enrolledCourses", 0);
+        data.put("todayClasses", 0);
+        data.put("totalHours", 0);
+        data.put("weekHours", 0);
+        data.put("todayCourseList", List.of());
+        data.put("studentClasses", List.of());
         return data;
     }
 }

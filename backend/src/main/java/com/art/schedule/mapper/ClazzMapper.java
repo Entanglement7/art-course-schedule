@@ -17,6 +17,9 @@ public interface ClazzMapper extends BaseMapper<Clazz> {
     @Delete("DELETE FROM class_students WHERE class_id = #{classId}")
     void deleteStudents(Long classId);
 
+    @Insert("INSERT INTO class_students (class_id, student_id) VALUES (#{classId}, #{studentId})")
+    void insertStudent(@Param("classId") Long classId, @Param("studentId") Long studentId);
+
     @Insert("<script>INSERT INTO class_students (class_id, student_id) VALUES " +
             "<foreach collection='studentIds' item='s' separator=','>(#{classId}, #{s})</foreach></script>")
     void insertStudents(@Param("classId") Long classId, @Param("studentIds") List<Long> studentIds);

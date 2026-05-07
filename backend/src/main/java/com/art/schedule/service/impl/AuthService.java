@@ -39,6 +39,16 @@ public class AuthService {
 
     public LoginResponse login(LoginRequest req) {
         User user = userMapper.selectOne(new QueryWrapper<User>().eq("username", req.getUsername()));
+        System.out.println("=== Login Debug ===");
+        System.out.println("Username: " + req.getUsername());
+        System.out.println("Input Password: " + req.getPassword());
+        System.out.println("User found: " + (user != null));
+        if (user != null) {
+            System.out.println("Stored Hash: " + user.getPassword());
+            boolean matches = passwordEncoder.matches(req.getPassword(), user.getPassword());
+            System.out.println("Password matches: " + matches);
+        }
+        System.out.println("==================");
         if (user == null || !passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("用户名或密码错误");
         }
