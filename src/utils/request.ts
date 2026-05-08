@@ -2,8 +2,19 @@ import axios from 'axios'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
 
+// 自动获取后端地址：如果是通过 IP 访问，则使用相同 IP；否则使用 localhost
+const getBaseURL = () => {
+  const hostname = window.location.hostname
+  // 如果是 IP 地址访问，使用相同 IP
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return `http://${hostname}:8080`
+  }
+  // 否则使用 localhost
+  return 'http://localhost:8080'
+}
+
 const request = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: getBaseURL(),
   timeout: 10000,
 })
 
