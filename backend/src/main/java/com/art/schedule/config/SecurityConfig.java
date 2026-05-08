@@ -26,6 +26,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // 允许所有 OPTIONS 请求（CORS 预检）
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                 .requestMatchers("/api/teachers/**", "/api/students/**",
                                  "/api/courses/**", "/api/classrooms/**").hasRole("ADMIN")
