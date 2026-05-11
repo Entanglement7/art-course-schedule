@@ -172,8 +172,7 @@ const rules = {
   },
   duration: {
     required: true,
-    message: '请选择课程时长',
-    trigger: 'change'
+    message: '请选择课程时长'
   }
 }
 
@@ -192,10 +191,10 @@ const typeOptions = [
 
 // 时长选项
 const durationOptions = [
-  { label: '45分钟', value: 45 },
-  { label: '60分钟', value: 60 },
-  { label: '90分钟', value: 90 },
-  { label: '120分钟', value: 120 }
+  { label: '45分钟', value: '45' },
+  { label: '60分钟', value: '60' },
+  { label: '90分钟', value: '90' },
+  { label: '120分钟', value: '120' }
 ]
 
 // Mock数据

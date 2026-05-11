@@ -17,4 +17,19 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
     @Insert("<script>INSERT INTO teacher_courses (teacher_id, course_name) VALUES " +
             "<foreach collection='courses' item='c' separator=','>(#{teacherId}, #{c})</foreach></script>")
     void insertCourses(@Param("teacherId") Long teacherId, @Param("courses") List<String> courses);
+
+    @Select("SELECT COUNT(*) FROM classes WHERE teacher_id = #{teacherId}")
+    Integer selectClassCount(Long teacherId);
+
+    @Select("SELECT COALESCE(SUM(student_count), 0) FROM classes WHERE teacher_id = #{teacherId}")
+    Integer selectStudentCount(Long teacherId);
+
+    @Select("SELECT name FROM classes WHERE teacher_id = #{teacherId}")
+    List<String> selectClassNames(Long teacherId);
+
+    @Select("SELECT COUNT(*) FROM schedules WHERE teacher_id = #{teacherId} AND WEEK(date) = WEEK(CURDATE())")
+    Integer selectWeekCourseCount(Long teacherId);
+
+    @Select("SELECT COUNT(*) FROM schedules WHERE teacher_id = #{teacherId} AND MONTH(date) = MONTH(CURDATE())")
+    Integer selectMonthCourseCount(Long teacherId);
 }

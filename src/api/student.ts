@@ -3,6 +3,8 @@ import request from '@/utils/request'
 export const getStudents = (params?: Record<string, unknown>) =>
   request.get('/api/students', { params })
 
+export const getStudentOptions = () => request.get('/api/students/options')
+
 export const getStudent = (id: number) => request.get(`/api/students/${id}`)
 
 export const createStudent = (data: Record<string, unknown>) =>

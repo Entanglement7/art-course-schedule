@@ -22,4 +22,25 @@ public class Teacher {
 
     @TableField(exist = false)
     private List<String> courses;
+
+    @TableField(exist = false)
+    private String specialties;
+
+    @TableField(exist = false)
+    private Integer classCount;
+
+    @TableField(exist = false)
+    private Integer studentCount;
+
+    @TableField(exist = false)
+    private Integer weekCourseCount;
+
+    @TableField(exist = false)
+    private Integer monthCourseCount;
+
+    @TableField(exist = false)
+    private Integer teachingYears;
+
+    @TableField(exist = false)
+    private List<String> classes;
 }

@@ -4,9 +4,13 @@ import com.art.schedule.common.PageResult;
 import com.art.schedule.common.Result;
 import com.art.schedule.dto.ClazzRequest;
 import com.art.schedule.entity.Clazz;
+import com.art.schedule.entity.Student;
 import com.art.schedule.service.impl.ClazzService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/classes")
@@ -46,6 +50,23 @@ public class ClazzController {
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         clazzService.delete(id);
+        return Result.success();
+    }
+
+    @GetMapping("/{id}/students")
+    public Result<List<Student>> getStudents(@PathVariable Long id) {
+        return Result.success(clazzService.getStudents(id));
+    }
+
+    @PostMapping("/{id}/students")
+    public Result<Void> addStudent(@PathVariable Long id, @RequestBody Map<String, Long> body) {
+        clazzService.addStudent(id, body.get("studentId"));
+        return Result.success();
+    }
+
+    @DeleteMapping("/{id}/students/{studentId}")
+    public Result<Void> removeStudent(@PathVariable Long id, @PathVariable Long studentId) {
+        clazzService.removeStudent(id, studentId);
         return Result.success();
     }
 }

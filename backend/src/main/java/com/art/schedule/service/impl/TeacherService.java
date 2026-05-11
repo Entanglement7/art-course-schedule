@@ -33,7 +33,19 @@ public class TeacherService {
         if (StringUtils.hasText(specialty)) q.eq(Teacher::getSpecialty, specialty);
         q.orderByDesc(Teacher::getCreatedAt);
         Page<Teacher> p = teacherMapper.selectPage(new Page<>(page, size), q);
-        p.getRecords().forEach(t -> t.setCourses(teacherMapper.selectCourses(t.getId())));
+        p.getRecords().forEach(t -> {
+            t.setCourses(teacherMapper.selectCourses(t.getId()));
+            t.setSpecialties(t.getSpecialty());
+            t.setClassCount(teacherMapper.selectClassCount(t.getId()));
+            t.setStudentCount(teacherMapper.selectStudentCount(t.getId()));
+            t.setClasses(teacherMapper.selectClassNames(t.getId()));
+            t.setWeekCourseCount(teacherMapper.selectWeekCourseCount(t.getId()));
+            t.setMonthCourseCount(teacherMapper.selectMonthCourseCount(t.getId()));
+            if (t.getJoinDate() != null) {
+                long years = java.time.temporal.ChronoUnit.YEARS.between(t.getJoinDate(), java.time.LocalDate.now());
+                t.setTeachingYears((int) years);
+            }
+        });
         return PageResult.of(p.getTotal(), p.getRecords());
     }
 
@@ -41,6 +53,16 @@ public class TeacherService {
         Teacher t = teacherMapper.selectById(id);
         if (t == null) throw new IllegalArgumentException("教师不存在");
         t.setCourses(teacherMapper.selectCourses(id));
+        t.setSpecialties(t.getSpecialty());
+        t.setClassCount(teacherMapper.selectClassCount(id));
+        t.setStudentCount(teacherMapper.selectStudentCount(id));
+        t.setClasses(teacherMapper.selectClassNames(id));
+        t.setWeekCourseCount(teacherMapper.selectWeekCourseCount(id));
+        t.setMonthCourseCount(teacherMapper.selectMonthCourseCount(id));
+        if (t.getJoinDate() != null) {
+            long years = java.time.temporal.ChronoUnit.YEARS.between(t.getJoinDate(), java.time.LocalDate.now());
+            t.setTeachingYears((int) years);
+        }
         return t;
     }
 

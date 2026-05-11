@@ -71,11 +71,18 @@
             v-model:value="formData.category"
             placeholder="请选择课程类别"
             :options="categoryOptions"
+            @update:value="() => { formData.courseName = '' }"
           />
         </n-form-item>
 
         <n-form-item label="课程名称" path="courseName">
-          <n-input v-model:value="formData.courseName" placeholder="例如：钢琴基础" />
+          <n-select
+            v-model:value="formData.courseName"
+            placeholder="请选择课程"
+            :options="courseOptions"
+            filterable
+            @update:value="handleCourseSelect"
+          />
         </n-form-item>
 
         <n-form-item label="授课教师" path="teacher">
@@ -116,49 +123,35 @@
     <n-modal
       v-model:show="showStudentModal"
       preset="card"
-      :title="`${selectedClass?.name} - 学生名单`"
-      style="width: 600px"
+      :title="`${currentClass?.name || ''} - 学生名单`"
+      style="width: 560px"
       :bordered="false"
     >
-      <n-spin :show="loadingStudents">
-        <n-empty v-if="!classStudents.length" description="暂无学生" />
-        <n-list v-else bordered>
-          <n-list-item v-for="student in classStudents" :key="student.id">
-            <template #prefix>
-              <n-avatar
-                round
-                :size="40"
-                :style="{ background: student.gender === '男' ? '#7C3AED' : '#EC4899' }"
-              >
-                {{ student.name.charAt(0) }}
-              </n-avatar>
-            </template>
-            <n-thing>
-              <template #header>
-                {{ student.name }}
-                <n-tag
-                  :type="student.gender === '男' ? 'info' : 'error'"
-                  size="small"
-                  :bordered="false"
-                  style="margin-left: 8px"
-                >
-                  {{ student.gender }}
-                </n-tag>
-              </template>
-              <template #description>
-                <n-space :size="8">
-                  <span>年龄：{{ student.age }}岁</span>
-                  <n-divider vertical />
-                  <span>家长：{{ student.parentName }}</span>
-                  <n-divider vertical />
-                  <span>电话：{{ student.phone }}</span>
-                </n-space>
-              </template>
-            </n-thing>
-          </n-list-item>
-        </n-list>
-      </n-spin>
+      <n-space vertical :size="16">
+        <n-space align="center">
+          <n-select
+            v-model:value="selectedStudentId"
+            placeholder="选择要添加的学生"
+            :options="availableStudentOptions"
+            filterable
+            clearable
+            style="width: 300px"
+          />
+          <n-button type="primary" :disabled="!selectedStudentId" @click="handleAddStudent">
+            添加
+          </n-button>
+        </n-space>
+
+        <n-data-table
+          :loading="studentLoading"
+          :columns="studentColumns"
+          :data="classStudents"
+          :bordered="false"
+          size="small"
+        />
+      </n-space>
     </n-modal>
+
   </div>
 </template>
 
@@ -167,8 +160,10 @@ import { ref, computed, h, onMounted } from 'vue'
 import { useMessage, useDialog, NButton, NTag, NSpace, NProgress, NAvatar, NThing, NDivider } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import dayjs from 'dayjs'
-import { getClasses, createClass, updateClass, deleteClass, getClassStudents } from '@/api/class'
+import { getClasses, createClass, updateClass, deleteClass, getClassStudents, addClassStudent, removeClassStudent } from '@/api/class'
 import { getTeachers } from '@/api/teacher'
+import { getCourseOptions } from '@/api/course'
+import { getStudentOptions } from '@/api/student'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -177,10 +172,6 @@ const loading = ref(false)
 const searchQuery = ref('')
 const filterCategory = ref(null)
 const showModal = ref(false)
-const showStudentModal = ref(false)
-const loadingStudents = ref(false)
-const selectedClass = ref<any>(null)
-const classStudents = ref<any[]>([])
 const modalTitle = ref('添加班级')
 const formRef = ref()
 
@@ -208,8 +199,7 @@ const rules = {
   },
   teacher: {
     required: true,
-    message: '请选择授课教师',
-    trigger: 'change'
+    message: '请选择授课教师'
   }
 }
 
@@ -221,11 +211,26 @@ const categoryOptions = [
 ]
 
 const teacherOptions = ref<any[]>([])
+const courseOptions = computed(() => {
+  const list = formData.value.category
+    ? courseList.value.filter((c: any) => c.category === formData.value.category)
+    : courseList.value
+  return list.map((c: any) => ({ label: c.name, value: c.name, category: c.category }))
+})
+const courseList = ref<any[]>([])
+
+// 学生名单弹窗
+const showStudentModal = ref(false)
+const currentClass = ref<any>(null)
+const classStudents = ref<any[]>([])
+const allStudentOptions = ref<any[]>([])
+const selectedStudentId = ref<number | null>(null)
+const studentLoading = ref(false)
 
 const classList = ref<any[]>([])
 
 onMounted(async () => {
-  await loadTeachers()
+  await Promise.all([loadTeachers(), loadCourses()])
   await loadData()
 })
 
@@ -235,10 +240,26 @@ async function loadTeachers() {
     const list: any[] = res.records ?? res.list ?? res
     teacherOptions.value = list.map((t: any) => ({
       label: t.name,
-      value: t.name
+      value: t.id
     }))
   } catch (err: any) {
     message.error(err.message || '加载教师列表失败')
+  }
+}
+
+async function loadCourses() {
+  try {
+    const res = await getCourseOptions() as any[]
+    courseList.value = res
+  } catch (err: any) {
+    message.error(err.message || '加载课程列表失败')
+  }
+}
+
+function handleCourseSelect(courseName: string) {
+  const course = courseList.value.find((c: any) => c.name === courseName)
+  if (course?.category) {
+    formData.value.category = course.category
   }
 }
 
@@ -340,22 +361,23 @@ const columns = [
               NButton,
               {
                 size: 'small',
+                type: 'info',
+                text: true,
+                onClick: () => handleStudentList(row)
+              },
+              { default: () => '学生名单' }
+            ),
+            h(
+              NButton,
+              {
+                size: 'small',
                 type: 'error',
                 text: true,
                 onClick: () => handleDelete(row)
               },
               { default: () => '删除' }
             ),
-            h(
-              NButton,
-              {
-                size: 'small',
-                type: 'info',
-                text: true,
-                onClick: () => handleViewStudents(row)
-              },
-              { default: () => '学生名单' }
-            )
+            
           ]
         }
       )
@@ -408,9 +430,80 @@ async function loadData() {
   }
 }
 
-function handleSearch() {
-  // 搜索逻辑已在computed中实现
+async function handleStudentList(row: any) {
+  currentClass.value = row
+  selectedStudentId.value = null
+  showStudentModal.value = true
+  await loadClassStudents(row.id)
+  if (allStudentOptions.value.length === 0) {
+    const res = await getStudentOptions() as any[]
+    allStudentOptions.value = res.map((s: any) => ({ label: s.name, value: s.id }))
+  }
 }
+
+async function loadClassStudents(classId: number) {
+  studentLoading.value = true
+  try {
+    const res = await getClassStudents(classId) as any[]
+    classStudents.value = res
+  } catch (err: any) {
+    message.error(err.message || '加载学生名单失败')
+  } finally {
+    studentLoading.value = false
+  }
+}
+
+async function handleAddStudent() {
+  if (!selectedStudentId.value) return
+  try {
+    await addClassStudent(currentClass.value.id, selectedStudentId.value)
+    message.success('添加成功')
+    selectedStudentId.value = null
+    await loadClassStudents(currentClass.value.id)
+    await loadData()
+  } catch (err: any) {
+    message.error(err.message || '添加失败')
+  }
+}
+
+async function handleRemoveStudent(studentId: number) {
+  try {
+    await removeClassStudent(currentClass.value.id, studentId)
+    message.success('移除成功')
+    await loadClassStudents(currentClass.value.id)
+    await loadData()
+  } catch (err: any) {
+    message.error(err.message || '移除失败')
+  }
+}
+
+// 过滤掉已在班级中的学生
+const availableStudentOptions = computed(() => {
+  const existingIds = new Set(classStudents.value.map((s: any) => s.id))
+  return allStudentOptions.value.filter((s: any) => !existingIds.has(s.value))
+})
+
+const studentColumns = [
+  { title: '姓名', key: 'name' },
+  { title: '性别', key: 'gender', width: 80 },
+  { title: '年龄', key: 'age', width: 80 },
+  { title: '家长', key: 'parentName' },
+  { title: '联系电话', key: 'phone' },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 80,
+    render(row: any) {
+      return h(
+        NButton,
+        { size: 'small', type: 'error', text: true, onClick: () => handleRemoveStudent(row.id) },
+        { default: () => '移除' }
+      )
+    }
+  }
+]
+
+function handleSearch() {}
 
 function handleReset() {
   searchQuery.value = ''
@@ -441,22 +534,6 @@ function handleEdit(row: any) {
   showModal.value = true
 }
 
-async function handleViewStudents(row: any) {
-  selectedClass.value = row
-  showStudentModal.value = true
-  loadingStudents.value = true
-  classStudents.value = []
-
-  try {
-    const data = await getClassStudents(row.id) as any[]
-    classStudents.value = data
-  } catch (err: any) {
-    message.error(err.message || '加载学生名单失败')
-  } finally {
-    loadingStudents.value = false
-  }
-}
-
 function handleDelete(row: any) {
   dialog.warning({
     title: '确认删除',
@@ -481,10 +558,12 @@ async function handleSubmit() {
 
     const data = {
       ...formData.value,
+      teacherId: formData.value.teacher,
       startDate: formData.value.startDate
         ? dayjs(formData.value.startDate).format('YYYY-MM-DD')
         : ''
     }
+    delete data.teacher
 
     if (data.id) {
       await updateClass(data.id, data)

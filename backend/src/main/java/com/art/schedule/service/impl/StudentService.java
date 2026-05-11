@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class StudentService {
@@ -94,6 +96,14 @@ public class StudentService {
     public void delete(Long id) {
         studentMapper.deleteById(id);
         studentMapper.deleteCourses(id);
+    }
+
+    public List<Map<String, Object>> options() {
+        return studentMapper.selectList(new LambdaQueryWrapper<Student>()
+                .select(Student::getId, Student::getName))
+                .stream()
+                .map(s -> Map.<String, Object>of("id", s.getId(), "name", s.getName()))
+                .toList();
     }
 
     private void copyProps(StudentRequest req, Student s) {

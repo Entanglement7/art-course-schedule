@@ -6,7 +6,10 @@ import com.art.schedule.entity.Clazz;
 import com.art.schedule.entity.Teacher;
 import com.art.schedule.mapper.ClazzMapper;
 import com.art.schedule.mapper.TeacherMapper;
+import com.art.schedule.entity.Student;
+import com.art.schedule.mapper.StudentMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import java.util.List;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -18,10 +21,12 @@ public class ClazzService {
 
     private final ClazzMapper clazzMapper;
     private final TeacherMapper teacherMapper;
+    private final StudentMapper studentMapper;
 
-    public ClazzService(ClazzMapper clazzMapper, TeacherMapper teacherMapper) {
+    public ClazzService(ClazzMapper clazzMapper, TeacherMapper teacherMapper, StudentMapper studentMapper) {
         this.clazzMapper = clazzMapper;
         this.teacherMapper = teacherMapper;
+        this.studentMapper = studentMapper;
     }
 
     public PageResult<Clazz> list(int page, int size, String search, String category, Long teacherId) {
@@ -61,6 +66,26 @@ public class ClazzService {
 
     public void delete(Long id) {
         clazzMapper.deleteById(id);
+    }
+
+    public java.util.List<Student> getStudents(Long classId) {
+        List<Long> ids = clazzMapper.selectStudentIds(classId);
+        if (ids.isEmpty()) return java.util.List.of();
+        return studentMapper.selectList(
+            new LambdaQueryWrapper<Student>().in(Student::getId, ids)
+        );
+    }
+
+    public void addStudent(Long classId, Long studentId) {
+        Clazz c = clazzMapper.selectById(classId);
+        if (c == null) throw new IllegalArgumentException("班级不存在");
+        List<Long> existing = clazzMapper.selectStudentIds(classId);
+        if (existing.contains(studentId)) throw new IllegalArgumentException("该学生已在班级中");
+        clazzMapper.insertStudent(classId, studentId);
+    }
+
+    public void removeStudent(Long classId, Long studentId) {
+        clazzMapper.deleteStudentFromClass(classId, studentId);
     }
 
     private void fillExtra(java.util.List<Clazz> list) {

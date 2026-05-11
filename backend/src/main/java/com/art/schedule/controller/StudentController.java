@@ -8,6 +8,9 @@ import com.art.schedule.service.impl.StudentService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/students")
 public class StudentController {
@@ -25,6 +28,11 @@ public class StudentController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String course) {
         return Result.success(studentService.list(page, size, search, course));
+    }
+
+    @GetMapping("/options")
+    public Result<List<Map<String, Object>>> options() {
+        return Result.success(studentService.options());
     }
 
     @GetMapping("/{id}")

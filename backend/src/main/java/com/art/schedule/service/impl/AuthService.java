@@ -5,21 +5,31 @@ import com.art.schedule.dto.LoginRequest;
 import com.art.schedule.dto.LoginResponse;
 import com.art.schedule.dto.RegisterRequest;
 import com.art.schedule.entity.User;
+import com.art.schedule.entity.Teacher;
+import com.art.schedule.entity.Student;
 import com.art.schedule.mapper.UserMapper;
+import com.art.schedule.mapper.TeacherMapper;
+import com.art.schedule.mapper.StudentMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
 
     private final UserMapper userMapper;
+    private final TeacherMapper teacherMapper;
+    private final StudentMapper studentMapper;
     private final JwtUtil jwtUtil;
 
-    public AuthService(UserMapper userMapper, JwtUtil jwtUtil) {
+    public AuthService(UserMapper userMapper, TeacherMapper teacherMapper, StudentMapper studentMapper, JwtUtil jwtUtil) {
         this.userMapper = userMapper;
+        this.teacherMapper = teacherMapper;
+        this.studentMapper = studentMapper;
         this.jwtUtil = jwtUtil;
     }
 
+    @Transactional
     public LoginResponse register(RegisterRequest req) {
         if (userMapper.selectOne(new QueryWrapper<User>().eq("username", req.getUsername())) != null) {
             throw new IllegalArgumentException("用户名已存在");
@@ -31,6 +41,21 @@ public class AuthService {
         user.setName(req.getName());
         user.setRole(role);
         userMapper.insert(user);
+
+        if ("teacher".equals(role)) {
+            Teacher teacher = new Teacher();
+            teacher.setName(req.getName());
+            teacherMapper.insert(teacher);
+            user.setTeacherId(teacher.getId());
+            userMapper.updateById(user);
+        } else if ("student".equals(role)) {
+            Student student = new Student();
+            student.setName(req.getName());
+            studentMapper.insert(student);
+            user.setStudentId(student.getId());
+            userMapper.updateById(user);
+        }
+
         return buildResponse(user);
     }
 

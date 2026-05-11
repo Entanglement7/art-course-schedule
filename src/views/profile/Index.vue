@@ -182,8 +182,8 @@
             </n-statistic>
           </n-gi>
           <n-gi>
-            <n-statistic label="班级总数" :value="adminStats.classCount">
-              <template #suffix">个</template>
+            <n-statistic label="今日课程" :value="adminStats.classCount">
+              <template #suffix>节</template>
             </n-statistic>
           </n-gi>
           <n-gi>
@@ -287,6 +287,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useUserStore } from '@/stores/user'
+import { getTeacher } from '@/api/teacher'
+import { getStudent } from '@/api/student'
+import { getDashboard } from '@/api/dashboard'
 
 const message = useMessage()
 const userStore = useUserStore()
@@ -308,36 +311,36 @@ const userInfo = reactive({
 
 // 教师信息
 const teacherInfo = reactive({
-  specialties: ['钢琴', '声乐'],
-  classCount: 4,
-  studentCount: 32,
-  weekCourseCount: 12,
-  monthCourseCount: 48,
-  teachingYears: 5,
-  classes: ['钢琴基础A班', '钢琴基础B班', '钢琴进阶班', '声乐基础班']
+  specialties: [] as string[],
+  classCount: 0,
+  studentCount: 0,
+  weekCourseCount: 0,
+  monthCourseCount: 0,
+  teachingYears: 0,
+  classes: [] as string[]
 })
 
 // 学生信息
 const studentInfo = reactive({
-  age: 8,
-  gender: '男',
-  enrollDate: '2024-09-01',
-  parentName: '明爸爸',
-  parentPhone: '13900139001',
-  courseCount: 2,
-  courses: ['钢琴基础', '素描基础'],
-  weekCourseCount: 3,
-  monthCourseCount: 12,
-  totalCourseCount: 48,
-  attendanceRate: 95
+  age: 0,
+  gender: '',
+  enrollDate: '',
+  parentName: '',
+  parentPhone: '',
+  courseCount: 0,
+  courses: [] as string[],
+  weekCourseCount: 0,
+  monthCourseCount: 0,
+  totalCourseCount: 0,
+  attendanceRate: 0
 })
 
 // 管理员统计
 const adminStats = reactive({
-  studentCount: 156,
-  teacherCount: 24,
-  classCount: 18,
-  classroomCount: 8
+  studentCount: 0,
+  teacherCount: 0,
+  classCount: 0,
+  classroomCount: 0
 })
 
 const editFormData = ref({
@@ -380,43 +383,88 @@ const passwordRules = {
 }
 
 // 加载用户信息
-onMounted(() => {
-  loadUserInfo()
+onMounted(async () => {
+  await loadUserInfo()
+  const role = userStore.userInfo.role
+  if (role === 'teacher' && userStore.userInfo.teacherId) {
+    await loadTeacherInfo()
+  } else if (role === 'student') {
+    await loadStudentInfo()
+  } else if (role === 'admin') {
+    await loadAdminStats()
+  }
 })
 
-function loadUserInfo() {
+async function loadTeacherInfo() {
+  try {
+    const teacherId = userStore.userInfo.teacherId
+    if (!teacherId) return
+
+    const res = await getTeacher(teacherId) as any
+    Object.assign(teacherInfo, {
+      specialties: res.specialties ? res.specialties.split(',') : [],
+      classCount: res.classCount || 0,
+      studentCount: res.studentCount || 0,
+      weekCourseCount: res.weekCourseCount || 0,
+      monthCourseCount: res.monthCourseCount || 0,
+      teachingYears: res.teachingYears || 0,
+      classes: res.classes || []
+    })
+  } catch (err: any) {
+    console.error('加载教师信息失败:', err)
+  }
+}
+
+async function loadStudentInfo() {
+  try {
+    const res = await getDashboard() as any
+    const studentId = userStore.userInfo.studentId
+    if (studentId) {
+      const detail = await getStudent(studentId) as any
+      Object.assign(studentInfo, {
+        age: detail.age || 0,
+        gender: detail.gender || '',
+        enrollDate: detail.enrollDate || '',
+        parentName: detail.parentName || '',
+        parentPhone: detail.phone || '',
+        courseCount: res.enrolledCourses || 0,
+        courses: (res.myCourses || []).map((c: any) => c.courseName || c.name || ''),
+        weekCourseCount: res.weekHours || 0,
+        monthCourseCount: 0,
+        totalCourseCount: res.totalHours || 0,
+        attendanceRate: 0
+      })
+    }
+  } catch (err: any) {
+    console.error('加载学生信息失败:', err)
+  }
+}
+
+async function loadAdminStats() {
+  try {
+    const res = await getDashboard() as any
+    Object.assign(adminStats, {
+      studentCount: res.totalStudents || 0,
+      teacherCount: res.totalTeachers || 0,
+      classCount: res.todayCourses || 0,
+      classroomCount: res.totalClassrooms || 0
+    })
+  } catch (err: any) {
+    console.error('加载管理员统计失败:', err)
+  }
+}
+
+async function loadUserInfo() {
   const user = userStore.userInfo
 
-  // 根据角色设置不同的用户信息
-  const userDataMap: Record<string, any> = {
-    admin: {
-      name: '管理员',
-      username: 'admin',
-      phone: '13800138000',
-      email: 'admin@example.com',
-      role: 'admin',
-      registerTime: '2024-01-01'
-    },
-    teacher: {
-      name: '张老师',
-      username: 'teacher',
-      phone: '13800138001',
-      email: 'teacher@example.com',
-      role: 'teacher',
-      registerTime: '2024-02-01'
-    },
-    student: {
-      name: '小明',
-      username: 'student',
-      phone: '13800138002',
-      email: 'student@example.com',
-      role: 'student',
-      registerTime: '2024-09-01'
-    }
-  }
-
-  const userData = userDataMap[user.role] || userDataMap.admin
-  Object.assign(userInfo, userData)
+  Object.assign(userInfo, {
+    name: user.name || user.username,
+    username: user.username,
+    phone: '',
+    email: '',
+    role: user.role,
+    registerTime: ''
+  })
 
   editFormData.value = {
     name: userInfo.name,

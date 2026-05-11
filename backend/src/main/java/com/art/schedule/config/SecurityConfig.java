@@ -32,6 +32,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // 允许所有 OPTIONS 请求（CORS 预检）
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/teachers/{id}").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/students/{id}").authenticated()
                 .requestMatchers("/api/teachers/**", "/api/students/**",
                                  "/api/courses/**", "/api/classrooms/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/classes/**").hasAnyRole("ADMIN", "TEACHER")
