@@ -17,9 +17,9 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS teachers (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(50) NOT NULL COMMENT '姓名',
-    phone       VARCHAR(20) NOT NULL COMMENT '联系电话',
-    specialty   VARCHAR(50) NOT NULL COMMENT '专业',
-    join_date   DATE NOT NULL COMMENT '入职日期',
+    phone       VARCHAR(20) NOT NULL DEFAULT '' COMMENT '联系电话',
+    specialty   VARCHAR(50) NOT NULL DEFAULT '' COMMENT '专业',
+    join_date   DATE NOT NULL DEFAULT (CURRENT_DATE) COMMENT '入职日期',
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted     TINYINT NOT NULL DEFAULT 0
@@ -34,11 +34,11 @@ CREATE TABLE IF NOT EXISTS teacher_courses (
 CREATE TABLE IF NOT EXISTS students (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
     name         VARCHAR(50) NOT NULL,
-    age          INT NOT NULL,
-    gender       VARCHAR(10) NOT NULL,
-    parent_name  VARCHAR(50) NOT NULL COMMENT '家长姓名',
-    phone        VARCHAR(20) NOT NULL,
-    enroll_date  DATE NOT NULL COMMENT '入学日期',
+    age          INT NOT NULL DEFAULT 0,
+    gender       VARCHAR(10) NOT NULL DEFAULT '',
+    parent_name  VARCHAR(50) NOT NULL DEFAULT '' COMMENT '家长姓名',
+    phone        VARCHAR(20) NOT NULL DEFAULT '',
+    enroll_date  DATE NOT NULL DEFAULT (CURRENT_DATE) COMMENT '入学日期',
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted      TINYINT NOT NULL DEFAULT 0
