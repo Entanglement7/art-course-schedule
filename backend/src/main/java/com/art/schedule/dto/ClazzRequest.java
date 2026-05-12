@@ -16,7 +16,6 @@ public class ClazzRequest {
     private Long teacherId;
     @NotNull(message = "班级容量不能为空")
     private Integer studentCount;
-    @NotBlank(message = "上课时间不能为空")
     private String schedule;
     @NotBlank(message = "开班日期不能为空")
     private String startDate;

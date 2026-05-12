@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS classes (
     course_name   VARCHAR(100) NOT NULL,
     teacher_id    BIGINT NOT NULL,
     student_count INT NOT NULL COMMENT '班级容量',
-    schedule      VARCHAR(100) NOT NULL COMMENT '上课时间描述',
+    schedule      VARCHAR(100) COMMENT '上课时间描述',
     start_date    DATE NOT NULL,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
