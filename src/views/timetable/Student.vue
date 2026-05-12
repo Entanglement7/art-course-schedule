@@ -110,6 +110,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
+import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
 import { useUserStore } from '@/stores/user'
@@ -120,6 +121,7 @@ dayjs.extend(weekOfYear)
 
 const message = useMessage()
 const userStore = useUserStore()
+const route = useRoute()
 
 const isAdmin = computed(() => userStore.userInfo.role === 'admin')
 const selectedStudentId = ref<number | null>(null)
@@ -154,14 +156,17 @@ const timeSlots = [
 ]
 
 onMounted(async () => {
+  const queryId = route.query.id ? Number(route.query.id) : null
+
   if (isAdmin.value) {
     try {
       const res = await getStudents({ size: 100 }) as any
       const list: any[] = res.records ?? res.list ?? res
       studentOptions.value = list.map((s: any) => ({ label: s.name, value: s.id }))
-      if (list.length) {
-        selectedStudentId.value = list[0].id
-        await loadStudentInfo(list[0].id)
+      const initId = queryId ?? (list.length ? list[0].id : null)
+      if (initId) {
+        selectedStudentId.value = initId
+        await loadStudentInfo(initId)
       }
     } catch { /* ignore */ }
   } else {

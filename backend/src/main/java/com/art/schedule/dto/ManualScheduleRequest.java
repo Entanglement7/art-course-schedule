@@ -7,8 +7,6 @@ import jakarta.validation.constraints.*;
 public class ManualScheduleRequest {
     @NotNull(message = "班级不能为空")
     private Long classId;
-    @NotNull(message = "课程不能为空")
-    private Long courseId;
     @NotNull(message = "教室不能为空")
     private Long classroomId;
     @NotNull(message = "星期不能为空")

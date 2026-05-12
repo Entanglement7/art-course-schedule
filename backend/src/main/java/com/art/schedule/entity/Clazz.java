@@ -13,6 +13,7 @@ public class Clazz {
     private String name;
     private String category;
     private String courseName;
+    private Long courseId;
     private Long teacherId;
     private Integer studentCount;
     private String schedule;
@@ -27,4 +28,7 @@ public class Clazz {
 
     @TableField(exist = false)
     private Integer currentCount;
+
+    @TableField(exist = false)
+    private Integer courseDuration;
 }

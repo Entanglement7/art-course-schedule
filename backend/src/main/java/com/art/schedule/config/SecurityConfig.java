@@ -32,6 +32,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // 允许所有 OPTIONS 请求（CORS 预检）
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                .requestMatchers("/api/auth/change-password", "/api/auth/me", "/api/auth/logout", "/api/auth/unlinked-users").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/teachers/{id}").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/students/{id}").authenticated()
                 .requestMatchers("/api/teachers/**", "/api/students/**",
@@ -41,6 +42,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/adjustments/*/approve", "/api/adjustments/*/reject").hasRole("ADMIN")
                 .requestMatchers("/api/adjustments/**").hasAnyRole("ADMIN", "TEACHER")
                 .requestMatchers("/api/schedules/manual", "/api/schedules/auto").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/schedules/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/schedules/**").authenticated()
                 .requestMatchers("/api/dashboard/**").authenticated()
                 .requestMatchers("/api/auth/me", "/api/auth/logout").authenticated()

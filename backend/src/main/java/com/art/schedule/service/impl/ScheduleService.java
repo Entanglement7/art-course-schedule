@@ -55,9 +55,19 @@ public class ScheduleService {
     }
 
     @Transactional
+    public void cancel(Long id) {
+        Schedule s = scheduleMapper.selectById(id);
+        if (s == null) throw new IllegalArgumentException("课程不存在");
+        scheduleMapper.deleteById(id);
+    }
+
+    @Transactional
     public List<Schedule> createManual(ManualScheduleRequest req) {
         Clazz clazz = clazzMapper.selectById(req.getClassId());
         if (clazz == null) throw new IllegalArgumentException("班级不存在");
+
+        // 删除该班级已有的排课记录，重新排课
+        scheduleMapper.deleteByClassId(req.getClassId());
 
         LocalDate startDate = LocalDate.parse(req.getStartDate());
         LocalTime startTime = LocalTime.parse(req.getStartTime());
@@ -74,7 +84,7 @@ public class ScheduleService {
         for (int i = 0; i < weeks; i++) {
             Schedule s = new Schedule();
             s.setClassId(req.getClassId());
-            s.setCourseId(req.getCourseId());
+            s.setCourseId(clazz.getCourseId());
             s.setClassroomId(req.getClassroomId());
             s.setTeacherId(clazz.getTeacherId());
             s.setDate(firstDate.plusWeeks(i));

@@ -87,6 +87,9 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
                                            @Param("startDate") LocalDate startDate,
                                            @Param("endDate") LocalDate endDate);
 
+    @Delete("DELETE FROM schedules WHERE class_id = #{classId}")
+    void deleteByClassId(@Param("classId") Long classId);
+
     // 冲突检测查询方法
     @Select("""
         SELECT COUNT(*) FROM schedules

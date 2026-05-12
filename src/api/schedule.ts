@@ -17,3 +17,6 @@ export const createManualSchedule = (data: Record<string, unknown>) =>
 
 export const smartSchedule = (data: Record<string, unknown>) =>
   request.post('/api/schedules/smart', data)
+
+export const cancelSchedule = (id: number) =>
+  request.delete(`/api/schedules/${id}`)

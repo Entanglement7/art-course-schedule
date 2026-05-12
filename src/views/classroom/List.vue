@@ -151,9 +151,10 @@ const rules = {
     trigger: 'change'
   },
   capacity: {
+    type: 'number',
     required: true,
     message: '请输入容纳人数',
-    trigger: 'blur'
+    trigger: ['blur', 'change']
   }
 }
 

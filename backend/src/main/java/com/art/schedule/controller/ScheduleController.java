@@ -65,4 +65,10 @@ public class ScheduleController {
     public Result<SmartScheduleResponse> smartSchedule(@Valid @RequestBody SmartScheduleRequest req) {
         return Result.success(smartScheduleService.generateSchedule(req));
     }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> cancel(@PathVariable Long id) {
+        scheduleService.cancel(id);
+        return Result.success(null);
+    }
 }

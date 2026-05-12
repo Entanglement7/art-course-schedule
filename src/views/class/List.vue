@@ -71,13 +71,13 @@
             v-model:value="formData.category"
             placeholder="请选择课程类别"
             :options="categoryOptions"
-            @update:value="() => { formData.courseName = '' }"
+            @update:value="() => { formData.courseName = ''; formData.courseId = null }"
           />
         </n-form-item>
 
-        <n-form-item label="课程名称" path="courseName">
+        <n-form-item label="课程名称" path="courseId">
           <n-select
-            v-model:value="formData.courseName"
+            v-model:value="formData.courseId"
             placeholder="请选择课程"
             :options="courseOptions"
             filterable
@@ -95,10 +95,6 @@
 
         <n-form-item label="班级人数" path="studentCount">
           <n-input-number v-model:value="formData.studentCount" :min="1" :max="30" placeholder="请输入班级人数" style="width: 100%" />
-        </n-form-item>
-
-        <n-form-item label="上课时间" path="schedule">
-          <n-input v-model:value="formData.schedule" placeholder="例如：周一 09:00-10:00" />
         </n-form-item>
 
         <n-form-item label="开班日期" path="startDate">
@@ -179,10 +175,10 @@ const formData = ref({
   id: null,
   name: '',
   category: null,
+  courseId: null,
   courseName: '',
   teacher: null,
   studentCount: null,
-  schedule: '',
   startDate: null
 })
 
@@ -215,7 +211,7 @@ const courseOptions = computed(() => {
   const list = formData.value.category
     ? courseList.value.filter((c: any) => c.category === formData.value.category)
     : courseList.value
-  return list.map((c: any) => ({ label: c.name, value: c.name, category: c.category }))
+  return list.map((c: any) => ({ label: c.name, value: c.id, name: c.name, category: c.category }))
 })
 const courseList = ref<any[]>([])
 
@@ -256,10 +252,11 @@ async function loadCourses() {
   }
 }
 
-function handleCourseSelect(courseName: string) {
-  const course = courseList.value.find((c: any) => c.name === courseName)
-  if (course?.category) {
-    formData.value.category = course.category
+function handleCourseSelect(courseId: number) {
+  const course = courseList.value.find((c: any) => c.id === courseId)
+  if (course) {
+    formData.value.courseName = course.name
+    if (course.category) formData.value.category = course.category
   }
 }
 
@@ -326,11 +323,6 @@ const columns = [
         ]
       )
     }
-  },
-  {
-    title: '上课时间',
-    key: 'schedule',
-    width: 180
   },
   {
     title: '开班日期',
@@ -416,11 +408,11 @@ async function loadData() {
       id: item.id,
       name: item.name,
       category: item.category,
+      courseId: item.courseId,
       courseName: item.courseName,
       teacher: item.teacherName || item.teacher,
       studentCount: item.capacity || item.studentCount,
       currentCount: item.currentCount || 0,
-      schedule: item.schedule,
       startDate: item.startDate
     }))
   } catch (err: any) {
@@ -516,10 +508,10 @@ function handleAdd() {
     id: null,
     name: '',
     category: null,
+    courseId: null,
     courseName: '',
     teacher: null,
     studentCount: null,
-    schedule: '',
     startDate: null
   }
   showModal.value = true
@@ -529,6 +521,7 @@ function handleEdit(row: any) {
   modalTitle.value = '编辑班级'
   formData.value = {
     ...row,
+    courseId: row.courseId ?? null,
     startDate: new Date(row.startDate).getTime()
   }
   showModal.value = true

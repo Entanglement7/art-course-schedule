@@ -502,15 +502,24 @@ function handleEditSubmit() {
 async function handlePasswordSubmit() {
   try {
     await passwordFormRef.value?.validate()
+    const response = await fetch('http://localhost:8080/api/auth/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        oldPassword: passwordFormData.value.oldPassword,
+        newPassword: passwordFormData.value.newPassword
+      })
+    })
+    const result = await response.json()
+    if (result.code !== 200) throw new Error(result.message)
     message.success('密码修改成功')
     showPasswordModal.value = false
-    passwordFormData.value = {
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    }
-  } catch (error) {
-    console.error('验证失败:', error)
+    passwordFormData.value = { oldPassword: '', newPassword: '', confirmPassword: '' }
+  } catch (error: any) {
+    if (error?.message) message.error(error.message)
   }
 }
 </script>

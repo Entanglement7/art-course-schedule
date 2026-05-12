@@ -69,15 +69,17 @@
                 format="HH:mm"
                 placeholder="请选择开始时间"
                 style="width: 200px"
+                @update:value="handleStartTimeChange"
               />
             </n-form-item>
 
             <n-form-item label="结束时间">
               <n-time-picker
-                v-model:value="formData.endTime"
+                :value="formData.endTime"
                 format="HH:mm"
-                placeholder="请选择结束时间"
+                placeholder="根据课程时长自动计算"
                 style="width: 200px"
+                :disabled="true"
               />
             </n-form-item>
 
@@ -105,7 +107,7 @@
             <n-button @click="prevStep">上一步</n-button>
             <n-button
               type="primary"
-              :disabled="!formData.dayOfWeek || !formData.startTime || !formData.endTime"
+              :disabled="!formData.dayOfWeek || !formData.startTime"
               @click="checkTimeConflict"
             >
               下一步
@@ -249,7 +251,8 @@ async function loadClasses() {
       courseName: item.courseName,
       teacher: item.teacherName || item.teacher,
       studentCount: item.capacity || item.studentCount,
-      currentCount: item.currentCount || 0
+      currentCount: item.currentCount || 0,
+      courseDuration: item.courseDuration || 60
     }))
   } catch (err: any) {
     message.error(err.message || '加载班级列表失败')
@@ -427,6 +430,15 @@ const classroomColumns = [
   }
 ]
 
+function handleStartTimeChange(val: number | null) {
+  if (val == null) {
+    formData.value.endTime = null
+    return
+  }
+  const duration = selectedClass.value?.courseDuration ?? 60
+  formData.value.endTime = val + duration * 60 * 1000
+}
+
 function nextStep() {
   currentStep.value++
 }
@@ -454,17 +466,14 @@ function getTimeDisplay() {
 
 async function handleSubmit() {
   try {
-    const startTime = dayjs(formData.value.startTime).format('HH:mm:ss')
-    const endTime = dayjs(formData.value.endTime).format('HH:mm:ss')
+    const startTime = dayjs(formData.value.startTime).format('HH:mm') + ':00'
+    const endTime = dayjs(formData.value.endTime).format('HH:mm') + ':00'
 
-    // 计算开始日期：从下周一开始
-    const today = dayjs()
-    const nextMonday = today.day() === 0 ? today.add(1, 'day') : today.add(8 - today.day(), 'day')
-    const startDate = nextMonday.format('YYYY-MM-DD')
+    // 开始日期从今天算起，后端会从该日期找下一个（含今天）匹配的星期
+    const startDate = dayjs().format('YYYY-MM-DD')
 
     const data = {
       classId: formData.value.classId,
-      courseId: selectedClass.value?.courseId || 1, // 如果班级没有courseId，使用默认值
       dayOfWeek: formData.value.dayOfWeek,
       startTime: startTime,
       endTime: endTime,

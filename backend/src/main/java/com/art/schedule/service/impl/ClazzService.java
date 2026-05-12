@@ -5,6 +5,8 @@ import com.art.schedule.dto.ClazzRequest;
 import com.art.schedule.entity.Clazz;
 import com.art.schedule.entity.Teacher;
 import com.art.schedule.mapper.ClazzMapper;
+import com.art.schedule.mapper.CourseMapper;
+import com.art.schedule.mapper.ScheduleMapper;
 import com.art.schedule.mapper.TeacherMapper;
 import com.art.schedule.entity.Student;
 import com.art.schedule.mapper.StudentMapper;
@@ -22,11 +24,17 @@ public class ClazzService {
     private final ClazzMapper clazzMapper;
     private final TeacherMapper teacherMapper;
     private final StudentMapper studentMapper;
+    private final ScheduleMapper scheduleMapper;
+    private final CourseMapper courseMapper;
 
-    public ClazzService(ClazzMapper clazzMapper, TeacherMapper teacherMapper, StudentMapper studentMapper) {
+    public ClazzService(ClazzMapper clazzMapper, TeacherMapper teacherMapper,
+                        StudentMapper studentMapper, ScheduleMapper scheduleMapper,
+                        CourseMapper courseMapper) {
         this.clazzMapper = clazzMapper;
         this.teacherMapper = teacherMapper;
         this.studentMapper = studentMapper;
+        this.scheduleMapper = scheduleMapper;
+        this.courseMapper = courseMapper;
     }
 
     public PageResult<Clazz> list(int page, int size, String search, String category, Long teacherId) {
@@ -65,6 +73,7 @@ public class ClazzService {
     }
 
     public void delete(Long id) {
+        scheduleMapper.deleteByClassId(id);
         clazzMapper.deleteById(id);
     }
 
@@ -93,6 +102,10 @@ public class ClazzService {
             Teacher t = teacherMapper.selectById(c.getTeacherId());
             if (t != null) c.setTeacherName(t.getName());
             c.setCurrentCount(clazzMapper.countStudents(c.getId()));
+            if (c.getCourseId() != null) {
+                var course = courseMapper.selectById(c.getCourseId());
+                if (course != null) c.setCourseDuration(course.getDuration());
+            }
         });
     }
 
@@ -100,6 +113,7 @@ public class ClazzService {
         c.setName(req.getName());
         c.setCategory(req.getCategory());
         c.setCourseName(req.getCourseName());
+        c.setCourseId(req.getCourseId());
         c.setTeacherId(req.getTeacherId());
         c.setStudentCount(req.getStudentCount());
         c.setSchedule(req.getSchedule());

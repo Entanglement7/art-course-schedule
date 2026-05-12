@@ -2,7 +2,7 @@
   <div class="page-container">
     <n-card title="智能排课" :bordered="false">
       <n-alert type="info" title="功能说明" style="margin-bottom: 16px">
-        输入教师、学生、教室和每周上课次数，系统自动找到无冲突的时间槽并生成课表。
+        选择班级、教师、学生和教室，系统自动找到无冲突的时间槽并生成课表。
       </n-alert>
 
       <n-form
@@ -18,15 +18,6 @@
             :options="classOptions"
             placeholder="请选择班级"
             @update:value="handleClassChange"
-          />
-        </n-form-item>
-
-        <n-form-item label="课程" path="courseId">
-          <n-select
-            v-model:value="form.courseId"
-            :options="courseOptions"
-            placeholder="请选择课程"
-            @update:value="handleCourseChange"
           />
         </n-form-item>
 
@@ -53,16 +44,6 @@
             v-model:value="form.classroomId"
             :options="classroomOptions"
             placeholder="请选择教室"
-          />
-        </n-form-item>
-
-        <n-form-item label="每周上课次数" path="sessionsPerWeek">
-          <n-input-number
-            v-model:value="form.sessionsPerWeek"
-            :min="1"
-            :max="5"
-            placeholder="1-5次"
-            style="width: 200px"
           />
         </n-form-item>
 
@@ -147,7 +128,6 @@
 import { ref, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { smartSchedule } from '@/api/schedule'
-import { getCourses } from '@/api/course'
 import { getTeachers } from '@/api/teacher'
 import { getStudents } from '@/api/student'
 import { getClassrooms } from '@/api/classroom'
@@ -160,28 +140,23 @@ const scheduleResult = ref<any>(null)
 
 const form = ref({
   classId: null,
-  courseId: null,
   teacherId: null,
   studentIds: [],
   classroomId: null,
-  sessionsPerWeek: 2,
   schedulePeriod: 'week',
   startDate: Date.now()
 })
 
 const rules = {
   classId: { required: true, message: '请选择班级', trigger: 'change', type: 'number' },
-  courseId: { required: true, message: '请选择课程', trigger: 'change', type: 'number' },
   teacherId: { required: true, message: '请选择教师', trigger: 'change', type: 'number' },
   studentIds: { required: true, message: '请选择学生', trigger: 'change', type: 'array' },
   classroomId: { required: true, message: '请选择教室', trigger: 'change', type: 'number' },
-  sessionsPerWeek: { required: true, message: '请输入每周上课次数', trigger: 'blur', type: 'number' },
   schedulePeriod: { required: true, message: '请选择排课周期', trigger: 'change' },
   startDate: { required: true, message: '请选择开始日期', trigger: 'change', type: 'number' }
 }
 
 const classOptions = ref<any[]>([])
-const courseOptions = ref<any[]>([])
 const teacherOptions = ref<any[]>([])
 const studentOptions = ref<any[]>([])
 const classroomOptions = ref<any[]>([])
@@ -204,17 +179,7 @@ async function loadOptions() {
     classOptions.value = classes.map((c: any) => ({
       label: `${c.name} - ${c.category}`,
       value: c.id,
-      courseId: c.courseId,
       teacherId: c.teacherId,
-      category: c.category
-    }))
-
-    // 加载课程
-    const coursesRes = await getCourses({ size: 100 }) as any
-    const courses = coursesRes.records || coursesRes.list || coursesRes || []
-    courseOptions.value = courses.map((c: any) => ({
-      label: `${c.name} (${c.category})`,
-      value: c.id,
       category: c.category
     }))
 
@@ -249,15 +214,9 @@ async function loadOptions() {
 }
 
 function handleClassChange(classId: number) {
-  // 根据选择的班级自动填充课程和教师
   const selectedClass = classOptions.value.find(c => c.value === classId)
-  if (selectedClass) {
-    if (selectedClass.courseId) {
-      form.value.courseId = selectedClass.courseId
-    }
-    if (selectedClass.teacherId) {
-      form.value.teacherId = selectedClass.teacherId
-    }
+  if (selectedClass?.teacherId) {
+    form.value.teacherId = selectedClass.teacherId
   }
 }
 
@@ -270,11 +229,10 @@ async function handleSchedule() {
 
     const res = await smartSchedule({
       classId: form.value.classId,
-      courseId: form.value.courseId,
       teacherId: form.value.teacherId,
       classroomId: form.value.classroomId,
       studentIds: form.value.studentIds,
-      sessionsPerWeek: form.value.sessionsPerWeek,
+      sessionsPerWeek: 1,
       schedulePeriod: form.value.schedulePeriod,
       startDate: formatDateToString(form.value.startDate)
     }) as any
@@ -302,11 +260,9 @@ function handleReset() {
   scheduleResult.value = null
   form.value = {
     classId: null,
-    courseId: null,
     teacherId: null,
     studentIds: [],
     classroomId: null,
-    sessionsPerWeek: 2,
     schedulePeriod: 'week',
     startDate: Date.now()
   }

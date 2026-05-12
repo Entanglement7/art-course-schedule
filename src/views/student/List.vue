@@ -104,6 +104,21 @@
             style="width: 100%"
           />
         </n-form-item>
+
+        <n-form-item label="关联账号" path="userId">
+          <n-select
+            v-model:value="formData.userId"
+            placeholder="请选择要关联的学生账号"
+            clearable
+            :options="unlinkedUserOptions"
+            :loading="loadingUsers"
+          />
+          <template #feedback>
+            <span style="font-size: 12px; color: #999">
+              只显示未关联的学生账号，学生需先注册账号
+            </span>
+          </template>
+        </n-form-item>
       </n-form>
 
       <template #footer>
@@ -134,6 +149,8 @@ const filterCourse = ref(null)
 const showModal = ref(false)
 const modalTitle = ref('添加学生')
 const formRef = ref()
+const loadingUsers = ref(false)
+const unlinkedUserOptions = ref<any[]>([])
 
 const formData = ref({
   id: null,
@@ -143,7 +160,8 @@ const formData = ref({
   parentName: '',
   phone: '',
   courses: [],
-  enrollDate: null
+  enrollDate: null,
+  userId: null
 })
 
 const rules = {
@@ -153,9 +171,10 @@ const rules = {
     trigger: 'blur'
   },
   age: {
+    type: 'number',
     required: true,
     message: '请输入年龄',
-    trigger: 'blur'
+    trigger: ['blur', 'change']
   },
   parentName: {
     required: true,
@@ -379,8 +398,10 @@ function handleAdd() {
     parentName: '',
     phone: '',
     courses: [],
-    enrollDate: null
+    enrollDate: null,
+    userId: null
   }
+  loadUnlinkedUsers()
   showModal.value = true
 }
 
@@ -388,9 +409,33 @@ function handleEdit(row: any) {
   modalTitle.value = '编辑学生'
   formData.value = {
     ...row,
-    enrollDate: new Date(row.enrollDate).getTime()
+    enrollDate: new Date(row.enrollDate).getTime(),
+    userId: null
   }
+  loadUnlinkedUsers()
   showModal.value = true
+}
+
+async function loadUnlinkedUsers() {
+  loadingUsers.value = true
+  try {
+    const response = await fetch('http://localhost:8080/api/auth/unlinked-users?role=student', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    const result = await response.json()
+    if (result.code === 200) {
+      unlinkedUserOptions.value = result.data.map((user: any) => ({
+        label: `${user.name} (${user.username})`,
+        value: user.id
+      }))
+    }
+  } catch (error) {
+    console.error('加载未关联账号失败:', error)
+  } finally {
+    loadingUsers.value = false
+  }
 }
 
 async function handleSubmit() {
@@ -410,6 +455,9 @@ async function handleSubmit() {
     } else {
       await createStudent(data)
       message.success('添加成功')
+      if (data.userId) {
+        message.info('已关联学生账号，该账号现在可以登录查看课表')
+      }
     }
 
     showModal.value = false

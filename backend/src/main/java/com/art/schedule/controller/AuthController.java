@@ -9,6 +9,8 @@ import com.art.schedule.mapper.UserMapper;
 import com.art.schedule.service.impl.AuthService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,6 +50,19 @@ public class AuthController {
         return Result.success(user);
     }
 
+    @PostMapping("/change-password")
+    public Result<Void> changePassword(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody ChangePasswordRequest req) {
+        User u = userMapper.selectById(user.getId());
+        if (!req.getOldPassword().equals(u.getPassword())) {
+            throw new IllegalArgumentException("原密码错误");
+        }
+        u.setPassword(req.getNewPassword());
+        userMapper.updateById(u);
+        return Result.success();
+    }
+
     @GetMapping("/unlinked-users")
     public Result<List<Map<String, Object>>> getUnlinkedUsers(@RequestParam String role) {
         LambdaQueryWrapper<User> query = new LambdaQueryWrapper<>();
@@ -67,5 +82,13 @@ public class AuthController {
                 ))
                 .toList();
         return Result.success(users);
+    }
+
+    @Data
+    public static class ChangePasswordRequest {
+        @NotBlank(message = "原密码不能为空")
+        private String oldPassword;
+        @NotBlank(message = "新密码不能为空")
+        private String newPassword;
     }
 }

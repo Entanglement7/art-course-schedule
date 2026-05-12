@@ -11,6 +11,7 @@ public class ClazzRequest {
     private String category;
     @NotBlank(message = "课程名称不能为空")
     private String courseName;
+    private Long courseId;
     @NotNull(message = "授课教师不能为空")
     private Long teacherId;
     @NotNull(message = "班级容量不能为空")

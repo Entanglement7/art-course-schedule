@@ -9,9 +9,6 @@ public class SmartScheduleRequest {
     private Long classId;               // 班级ID（如果选择已有班级）
     private String className;           // 班级名称（如果新建班级）
 
-    @NotNull(message = "课程不能为空")
-    private Long courseId;
-
     @NotNull(message = "教师不能为空")
     private Long teacherId;
 

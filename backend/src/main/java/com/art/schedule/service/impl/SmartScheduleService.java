@@ -37,24 +37,28 @@ public class SmartScheduleService {
     @Transactional
     public SmartScheduleResponse generateSchedule(SmartScheduleRequest request) {
         try {
-            // 1. 验证输入
-            Course course = courseMapper.selectById(request.getCourseId());
-            if (course == null) {
-                return SmartScheduleResponse.failure("课程不存在");
-            }
-
+            // 1. 验证教师
             Teacher teacher = teacherMapper.selectById(request.getTeacherId());
             if (teacher == null) {
                 return SmartScheduleResponse.failure("教师不存在");
             }
 
             // 2. 创建或获取班级
-            Clazz clazz = getOrCreateClass(request, course, teacher);
+            Clazz clazz = getOrCreateClass(request, null, teacher);
+            if (clazz == null) {
+                return SmartScheduleResponse.failure("班级不存在");
+            }
 
-            // 3. 生成可用时间槽（MVP: 只支持60分钟课程）
+            // 3. 从班级获取课程
+            Course course = courseMapper.selectById(clazz.getCourseId());
+            if (course == null) {
+                return SmartScheduleResponse.failure("班级未关联课程，请先在班级管理中设置课程");
+            }
+
+            // 4. 生成可用时间槽（MVP: 只支持60分钟课程）
             List<TimeSlot> availableSlots = generateAvailableTimeSlots(course.getDuration());
 
-            // 4. 选择最优时间槽
+            // 5. 选择最优时间槽
             List<TimeSlot> selectedSlots = selectBestTimeSlots(
                 availableSlots,
                 request.getSessionsPerWeek(),
@@ -70,20 +74,23 @@ public class SmartScheduleService {
                 );
             }
 
-            // 5. 计算排课周数
+            // 6. 删除该班级已有的排课记录，重新排课
+            scheduleMapper.deleteByClassId(clazz.getId());
+
+            // 7. 计算排课周数
             int weeks = calculateWeeks(request.getSchedulePeriod());
 
-            // 6. 生成课表记录
+            // 8. 生成课表记录
             List<Schedule> schedules = createSchedules(
                 clazz,
-                request.getCourseId(),
+                clazz.getCourseId(),
                 request.getClassroomId(),
                 selectedSlots,
                 LocalDate.parse(request.getStartDate()),
                 weeks
             );
 
-            // 7. 关联学生到班级
+            // 9. 关联学生到班级
             associateStudentsToClass(clazz.getId(), request.getStudentIds());
 
             return SmartScheduleResponse.success(schedules);

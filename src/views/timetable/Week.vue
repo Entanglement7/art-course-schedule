@@ -52,11 +52,13 @@
               class="course-cell"
               @click="handleCellClick(day.value, time)"
             >
+              <!-- 课程卡片：按实际时长跨多格显示 -->
               <div
                 v-for="course in getCourses(day.value, time)"
                 :key="course.id"
                 class="course-card"
                 :class="getCourseClass(course.category)"
+                :style="getCourseCardStyle(course)"
                 @click.stop="handleCourseClick(course)"
               >
                 <div class="course-name">{{ course.name }}</div>
@@ -133,8 +135,17 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showDetailModal = false">关闭</n-button>
-          <n-button type="warning" @click="handleAdjustCourse">调课</n-button>
-          <n-button type="error" @click="handleCancelCourse">取消课程</n-button>
+          <n-popconfirm
+            v-if="isAdmin"
+            @positive-click="handleCancelCourse"
+            positive-text="确认取消"
+            negative-text="再想想"
+          >
+            <template #trigger>
+              <n-button type="error" :loading="cancelling">取消课程</n-button>
+            </template>
+            确定取消该课程？此操作不可恢复。
+          </n-popconfirm>
         </n-space>
       </template>
     </n-modal>
@@ -147,15 +158,19 @@ import { useMessage } from 'naive-ui'
 import { PersonOutline, BusinessOutline, PrintOutline } from '@vicons/ionicons5'
 import dayjs from 'dayjs'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
-import { getWeekSchedule } from '@/api/schedule'
+import { getWeekSchedule, cancelSchedule } from '@/api/schedule'
+import { useUserStore } from '@/stores/user'
 
 dayjs.extend(weekOfYear)
 
 const message = useMessage()
+const userStore = useUserStore()
+const isAdmin = computed(() => userStore.userInfo.role === 'admin')
 
 const currentWeek = ref(Date.now())
 const showDetailModal = ref(false)
 const loading = ref(false)
+const cancelling = ref(false)
 const selectedCourse = ref<any>(null)
 
 // 星期
@@ -169,18 +184,21 @@ const weekDays = [
   { label: '周日', value: 0 }
 ]
 
-// 时间段
+// 时间段（完整覆盖 08:00 - 21:00，卡片按时长跨多格）
 const timeSlots = [
   { id: 1, start: '08:00', end: '09:00' },
   { id: 2, start: '09:00', end: '10:00' },
   { id: 3, start: '10:00', end: '11:00' },
   { id: 4, start: '11:00', end: '12:00' },
-  { id: 5, start: '14:00', end: '15:00' },
-  { id: 6, start: '15:00', end: '16:00' },
-  { id: 7, start: '16:00', end: '17:00' },
-  { id: 8, start: '17:00', end: '18:00' },
-  { id: 9, start: '19:00', end: '20:00' },
-  { id: 10, start: '20:00', end: '21:00' }
+  { id: 5, start: '12:00', end: '13:00' },
+  { id: 6, start: '13:00', end: '14:00' },
+  { id: 7, start: '14:00', end: '15:00' },
+  { id: 8, start: '15:00', end: '16:00' },
+  { id: 9, start: '16:00', end: '17:00' },
+  { id: 10, start: '17:00', end: '18:00' },
+  { id: 11, start: '18:00', end: '19:00' },
+  { id: 12, start: '19:00', end: '20:00' },
+  { id: 13, start: '20:00', end: '21:00' }
 ]
 
 const courses = ref<any[]>([])
@@ -219,25 +237,51 @@ async function loadCourses() {
   }
 }
 
-// 获取指定日期和时间段的课程
+// 获取指定日期和时间段的课程（只在开始格渲染卡片，卡片按时长跨多格）
 function getCourses(dayOfWeek: number, timeSlot: any) {
   return courses.value.filter(course => {
     if (course.dayOfWeek !== dayOfWeek) return false
-
-    const courseStart = course.startTime
-    const courseEnd = course.endTime
-    const slotStart = timeSlot.start
-    const slotEnd = timeSlot.end
-
-    return (
-      (courseStart >= slotStart && courseStart < slotEnd) ||
-      (courseEnd > slotStart && courseEnd <= slotEnd) ||
-      (courseStart <= slotStart && courseEnd >= slotEnd)
-    )
+    return course.startTime >= timeSlot.start && course.startTime < timeSlot.end
   }).map(course => ({
     ...course,
     date: getDateStr(dayOfWeek)
   }))
+}
+
+// 把 HH:mm 转为分钟
+function toMinutes(t: string) {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+
+// 单元格高度（与 .course-cell min-height 保持一致）
+const CELL_HEIGHT = 80
+const SLOT_MINUTES = 60
+
+// 计算课程卡片的绝对定位样式：按时长跨多格
+function getCourseCardStyle(course: any) {
+  const startMin = toMinutes(course.startTime)
+  const endMin = toMinutes(course.endTime)
+  const duration = endMin - startMin
+
+  // 起始时间相对于所在格起点的偏移（一般为 0）
+  const slotStart = timeSlots.find(
+    s => course.startTime >= s.start && course.startTime < s.end
+  )
+  const offsetMin = slotStart ? startMin - toMinutes(slotStart.start) : 0
+
+  const top = (offsetMin / SLOT_MINUTES) * CELL_HEIGHT
+  const height = (duration / SLOT_MINUTES) * CELL_HEIGHT - 8
+
+  return {
+    position: 'absolute',
+    top: `${top + 4}px`,
+    left: '4px',
+    right: '4px',
+    height: `${height}px`,
+    zIndex: 2,
+    overflow: 'hidden'
+  }
 }
 
 // 获取课程样式类
@@ -283,16 +327,20 @@ function handleCourseClick(course: any) {
   showDetailModal.value = true
 }
 
-// 调课
-function handleAdjustCourse() {
-  message.info('调课功能开发中')
-  showDetailModal.value = false
-}
-
 // 取消课程
-function handleCancelCourse() {
-  message.warning('取消课程功能开发中')
-  showDetailModal.value = false
+async function handleCancelCourse() {
+  if (!selectedCourse.value) return
+  cancelling.value = true
+  try {
+    await cancelSchedule(selectedCourse.value.id)
+    message.success('课程已取消')
+    showDetailModal.value = false
+    await loadCourses()
+  } catch (err: any) {
+    message.error(err.message || '取消失败')
+  } finally {
+    cancelling.value = false
+  }
 }
 
 // 打印课表
@@ -314,8 +362,7 @@ function handlePrint() {
 .timetable-grid {
   display: grid;
   grid-template-columns: 100px repeat(7, 1fr);
-  gap: 1px;
-  background-color: #E5E7EB;
+  gap: 0;
   border: 1px solid #E5E7EB;
   min-width: 1000px;
 }
@@ -326,6 +373,8 @@ function handlePrint() {
   font-weight: 600;
   text-align: center;
   color: #374151;
+  border-right: 1px solid #E5E7EB;
+  border-bottom: 1px solid #E5E7EB;
 }
 
 .time-header {
@@ -363,6 +412,8 @@ function handlePrint() {
   align-items: center;
   justify-content: center;
   gap: 2px;
+  border-right: 1px solid #E5E7EB;
+  border-bottom: 1px solid #E5E7EB;
 }
 
 .time-label {
@@ -379,8 +430,12 @@ function handlePrint() {
   background-color: white;
   padding: 4px;
   min-height: 80px;
+  height: 80px;
   cursor: pointer;
   transition: background-color 0.2s;
+  border-right: 1px solid #E5E7EB;
+  border-bottom: 1px solid #E5E7EB;
+  position: relative;
 }
 
 .course-cell:hover {
@@ -392,7 +447,8 @@ function handlePrint() {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
 }
 
 .course-card:hover {
