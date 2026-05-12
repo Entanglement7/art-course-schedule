@@ -253,6 +253,9 @@ public class SmartScheduleService {
 
         List<Schedule> schedules = new ArrayList<>();
 
+        // 对齐到 startDate 所在周的周一，确保同一周内的时间槽都落在本周
+        LocalDate weekMonday = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+
         for (int week = 0; week < weeks; week++) {
             for (TimeSlot slot : timeSlots) {
                 Schedule schedule = new Schedule();
@@ -261,9 +264,14 @@ public class SmartScheduleService {
                 schedule.setTeacherId(clazz.getTeacherId());
                 schedule.setClassroomId(classroomId);
 
-                // 计算具体日期
-                LocalDate date = startDate.plusWeeks(week)
-                    .with(TemporalAdjusters.nextOrSame(DayOfWeek.of(slot.dayOfWeek)));
+                // 从本周一偏移到目标星期几，再加 week 周
+                LocalDate date = weekMonday.plusWeeks(week)
+                    .with(DayOfWeek.of(slot.dayOfWeek));
+
+                // 如果该日期早于 startDate（本周已过的天），顺延到下一周
+                if (date.isBefore(startDate)) {
+                    date = date.plusWeeks(1);
+                }
 
                 schedule.setDate(date);
                 schedule.setDayOfWeek(slot.dayOfWeek);
